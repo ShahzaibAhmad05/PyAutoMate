@@ -1,0 +1,20 @@
+QMenu {
+    background-color: rgb(255, 255, 255);
+    border: 1px solid rgb(224, 224, 224);
+    border-radius: 10px;
+    padding: 5px 0;
+    color: rgb(0, 0, 0);
+}
+QMenu::item {
+    padding: 6px 24px;
+    border-radius: 5px;
+    margin: 0 5px;
+}
+QMenu::item:selected {
+    background-color: rgb(230, 243, 255);
+}
+QMenu::separator {
+    background-color: rgb(224, 224, 224);
+    height: 1px;
+    margin: 5px 0;
+}

@@ -1,0 +1,6 @@
+QMainWindow {
+    background-color: rgb(244, 244, 244);
+}
+QLabel {
+    color: rgb(0, 0, 0);
+}

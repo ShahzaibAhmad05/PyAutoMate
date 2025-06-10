@@ -6,11 +6,18 @@ import logging
 import os
 import inspect
 import pickle
-from Universal import sleep_for
-from Assistant import GlobalTextBox
 # need a root app to get started
 root_app = QApplication([])
 
+def sleep_for(sleep_time: int) -> None:
+    """ 
+    Calls a sleep event without blocking the app's loop.
+    Args:
+        sleep_time (int): requires time given in ms.
+    """
+    loop = QEventLoop()
+    QTimer.singleShot(sleep_time, loop.quit)    # assuming sleep_time is in ms
+    loop.exec_()
 
 # start of CustomLogger class
 class CustomLogger(logging.Logger):
@@ -138,15 +145,6 @@ loading_window.set_text('Defining local modules...')
 class MainTool(QMainWindow):
     def __init__(self):
         super().__init__()
-
-        self.app_theme = app_theme
-        
-        self.allowed_keys = [  
-            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',  
-            'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',  
-            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',  
-            '`', '-', '=', '[', ']', '\\', ';', "'", ',', '.', '/'
-        ]
         # Set up the main window and object variables
         self.setWindowTitle("PyAutoMate")
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.SplashScreen)
@@ -166,11 +164,8 @@ class MainTool(QMainWindow):
         self.background_color = QColor(244, 244, 244) if app_theme == 'light' else QColor(30, 30, 30)
         # initialize the user interface
         logger.info('calling init_ui()')
-        self.floating_textbox = GlobalTextBox(self)
-
         self.init_ui()
         enable_dragging(self)
-
 
     def init_ui(self) -> None:
         """ Initialize the UI components of the main window """
@@ -411,17 +406,6 @@ class MainTool(QMainWindow):
                 self.show()
             else:
                 self.hide()
-        if self.floating_textbox.isHidden():
-            for key in self.allowed_keys:
-                if keyboard.is_pressed(key):
-                    while keyboard.is_pressed(key): sleep_for(50)
-                    self.start_floating_textbox()
-        else:
-            if not self.floating_textbox.text() or keyboard.is_pressed('esc'):
-                self.stop_floating_textbox()
-            elif keyboard.is_pressed('enter'):
-                self.floating_textbox.process_command()
-
         QTimer.singleShot(25, self.key_work)
 
     def paintEvent(self, event):
@@ -457,37 +441,14 @@ class MainTool(QMainWindow):
             self.open_tool()
         elif not self.is_small and action == action3:
             logger.info('calling open_settings()')
-            self.stop_floating_textbox()
             self.open_settings()
-            self.start_floating_textbox()
         elif not self.is_small and action == action4:
             logger.info('calling add_new_button()')
             self.add_new_button()
-        elif not self.is_small and action == actione:
-            self.stop_floating_textbox()
-            if QMessageBox.question(self, 'PyAutoMate', 'Are you sure you want to exit?') == QMessageBox.Yes:
-                save_app_code()
-                QApplication.quit()
-            else:
-                self.start_floating_textbox()
-
-    def stop_floating_textbox(self):
-        self.floating_textbox.clear()
-        self.floating_textbox.hide()
-
-    def start_floating_textbox(self):
-        self.floating_textbox.show()
-        self.floating_textbox.setFocus(Qt.OtherFocusReason)
-        self.floating_textbox.setFocus()
-
-    def hide(self):
-        self.stop_floating_textbox()
-        super().hide()
-
-    def show(self):
-        self.start_floating_textbox()
-        super().show()
-
+        elif (not self.is_small and action == actione and QMessageBox.question(self, 'PyAutoMate',
+                'Are you sure you want to exit?') == QMessageBox.Yes):
+            save_app_code()
+            sys.exit(0)
 # end of MainTool class
 
 # start of ToggleSwitch class
@@ -1753,8 +1714,6 @@ if __name__ == "__main__":
     root_app.setWindowIcon(binary_to_qicon(app_logo))
     logger.info('calling MainTool()')
     main_tool = MainTool()
-    # Activate the Assistant
-    # QTimer.singleShot(0, main_tool.activate_assistant)
     main_tool.show() # finally, show the main tool
     loading_window.hide()
     main_tool.key_work()    # activates the shortcut key of app hide

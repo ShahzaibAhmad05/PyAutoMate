@@ -1,0 +1,42 @@
+QDialog, #QPushButton, QLabel, QCheckBox, QRadioButton {
+    background-color: rgb(244, 244, 244); 
+    border: 1px solid rgb(224, 224, 224);
+    color: rgb(0, 0, 0); 
+    font-size: 14px;
+}
+#QPushButton, #close-button {
+    padding: 5px 0;
+    border-radius: 5px;
+    background-color: rgb(255, 255, 255);
+    color: rgb(0, 0, 0);
+    border: 1px solid rgb(224, 224, 224);
+}
+#title-label {
+    font-size: 18px;
+}
+#QPushButton:hover {
+    background-color: rgb(230, 243, 255);
+    border-color: rgb(0, 120, 215);
+}
+QLabel, QCheckBox, QRadioButton {
+    border: none;
+}
+#close-button:hover {
+    background-color: rgb(232, 17, 35);
+    color: rgb(255, 255, 255);
+}
+QTextEdit, QLineEdit {
+    background-color: rgb(255, 255, 255);
+    border: 1px solid rgb(224, 224, 224);
+    color: rgb(0, 0, 0); 
+}
+QMessageBox, QMessageBox QLabel {
+    background-color: rgb(255, 255, 255);
+    color: rgb(0, 0, 0);
+    border: none;
+}
+QSpinBox {
+    background-color: rgb(255, 255, 255);
+    border-color: rgb(0, 120, 215);
+    color: rgb(0, 0, 0);
+}

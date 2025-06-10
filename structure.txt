@@ -1,0 +1,13 @@
+This is the Necessary Structure of this App:
+
+/.
+    Universal
+        main_functions.py
+
+    Assistant
+        active_textbox.py
+
+    PyAutoMate.py
+
+    script.bin
+    settings.bin

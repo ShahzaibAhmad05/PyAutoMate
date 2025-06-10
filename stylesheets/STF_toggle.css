@@ -1,0 +1,9 @@
+#toggle-switch {
+    background-color: rgb(200, 0, 0);
+    border-radius: 10px;
+    color: black;
+    font-size: 14px;
+}
+#toggle-switch:hover {
+    background-color: rgb(255, 0, 0);
+}
