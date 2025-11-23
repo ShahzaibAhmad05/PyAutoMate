@@ -10,3 +10,6 @@ __pycache__/
 # debugging purpose/heavy files
 images/
 assistant_files.json
+
+# temporary files
+temp.*
