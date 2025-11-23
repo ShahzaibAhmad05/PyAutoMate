@@ -1,0 +1,10 @@
+PyQt5
+pyautogui
+keyboard
+mouse
+pyperclip
+Pillow
+psutil
+PyGetWindow
+opencv-python
+numpy
