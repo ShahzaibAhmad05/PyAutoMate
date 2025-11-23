@@ -8,33 +8,9 @@ import inspect
 import pickle
 from Universal import sleep_for
 from Assistant import GlobalTextBox
+
 # need a root app to get started
 root_app = QApplication([])
-
-
-# start of CustomLogger class
-class CustomLogger(logging.Logger):
-    def __init__(self, name):
-        super().__init__(name)
-
-    def _log(self, level, msg, args, exc_info=None, extra=None, stack_info=False):
-        # Log only if the log is from the current file
-        current_file = os.path.basename(inspect.getfile(CustomLogger))
-        caller_file = os.path.basename(inspect.stack()[2].filename)
-        
-        if caller_file == current_file:
-            super()._log(level, msg, args, exc_info, extra, stack_info)
-# end of CustomLogger class
-
-logging.setLoggerClass(CustomLogger)
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.DEBUG,  # Log level
-    format=f'%(lineno)d %(levelname)s: %(message)s',  # log format
-    filename='app.log',  # Log file name
-    filemode='w'  # overwrites the previous log
-)
-logger.info('-- INITIALIZING 1.0 --')   # the app version
 
 # start of DecoyWindow class
 class DecoyWindow(QMainWindow):
@@ -48,8 +24,8 @@ class DecoyWindow(QMainWindow):
         """
         super().__init__()
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.SplashScreen)
+
         # Logo
-        logger.debug('setting: logo')
         with open('settings.bin', 'rb') as file:
             data = pickle.load(file)
             app_size = data['app size']
@@ -59,28 +35,29 @@ class DecoyWindow(QMainWindow):
         self.logo_label = QLabel()
         pixmap = QPixmap()
         if not pixmap.loadFromData(app_logo):
-            logger.error('Could not load pixmap for app logo in settings')
             raise ValueError('Could not load pixmap for app logo in settings')
         self.logo_label.setPixmap(pixmap.scaled(app_size, app_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
         # set the screen size
-        logger.debug('setting: screen size')
         screen = self.screen().geometry()
         screen_width, screen_height = screen.width(), screen.height()
+
         # set the stylesheet of the window
         style_sheet_file = 'stylesheets/STD_decoy.css' if app_theme == 'dark' else 'stylesheets/STL_decoy.css'
         with open(style_sheet_file, 'r') as file:
             self.setStyleSheet(file.read())
+
         # Text
-        logger.debug('setting: label')
         self.label = QLabel(text, self)
         self.label.setAlignment(Qt.AlignVCenter)
         self.label.setStyleSheet(" font-size: 18px; ")
+
         # Main widget & layout
-        logger.debug('setting: layout')
         central_widget = QWidget(self)
         layout = QHBoxLayout(central_widget)
         layout.setContentsMargins(25, 0, 25, 0)
         layout.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        
         # Add widgets to layout
         layout.addWidget(self.logo_label)
         layout.addWidget(self.label)
@@ -92,8 +69,8 @@ class DecoyWindow(QMainWindow):
         """ method used to change the text on the label """
         self.label.setText(text)
         sleep_for(25)
+
 # create the loading window
-logger.info('calling DecoyWindow()')
 loading_window = DecoyWindow('Importing module: time')
 loading_window.show()
 # start the imports
@@ -158,24 +135,23 @@ class MainTool(QMainWindow):
         self.restricted = False
         self.prev_xy = None
         # initialize the grid variables of the app
-        logger.info('Initializing grid')
         rows, cols = app_grid, app_grid + 2
         self.occupancies = [[False for _ in range(cols)] for _ in range(rows)]
         self.snap_positions = [[self.get_grid_xy(i, j) for j in range(cols)] for i in range(rows)]
         # setup background color
         self.background_color = QColor(244, 244, 244) if app_theme == 'light' else QColor(30, 30, 30)
-        # initialize the user interface
-        logger.info('calling init_ui()')
-        self.floating_textbox = GlobalTextBox(self)
 
+        # initialize the user interface
         self.init_ui()
         enable_dragging(self)
+        # Assistant control variables
+        self.assistant_text_enabled = True
+        self.floating_textbox = GlobalTextBox(self)
 
 
     def init_ui(self) -> None:
         """ Initialize the UI components of the main window """
         # setup logo button
-        logger.debug('setting: logo_button')
         self.logo_button = QPushButton(self)
         self.logo_button.setIcon(binary_to_qicon(app_logo))
         self.logo_button.setStyleSheet("QPushButton { border: none; }")
@@ -183,32 +159,31 @@ class MainTool(QMainWindow):
         self.logo_button.mousePressEvent = self.mousePressEvent
         self.logo_button.mouseMoveEvent = self.mouseMoveEvent
         self.place_button(self.logo_button, 0, 0)
+
         # setup app title
-        logger.debug('setting: app_title_label')
         self.app_title_label = QLabel("PyAutoMate", self)
         font_size = int(app_size * 0.45)
+        self.font_size = font_size
         self.app_title_label.setStyleSheet(
             f" color: rgb(0, 131, 172); font-size: {font_size}px; "
             f" margin-top: {font_size // 12}; margin-left: {font_size // 4}; "
         )
+
         # add scripted buttons
-        logger.debug('setting: scripting_buttons')
         for script in app_code:
             if 0 < script[0] < 1000000:
                 self.button = DraggableButton(self, script[0], script[2], script[1], script[3])
                 push_button_stylesheet(self.button)
                 self.place_button(self.button)
         # call open_tool() to shape the app
-        logger.info('calling open_tool()')
         self.open_tool(event=None, animate=False)
-        # move the logo and its label to appropriate position
-        logger.debug('repositioning logo, label')
-        x, y = self.logo_button.pos().x() + app_size, self.logo_button.pos().y() + app_size // 5
-        self.app_title_label.setGeometry(x, y, font_size * 6, int(font_size * 1.5))
+
+        # Move the logo and its label to appropriate position
+        self.place_logo_and_title()
+        
 
     def open_settings(self) -> None:
         """ creates an instance of Settings() which is a QDialog """
-        logger.info('calling Settings()')
         self.settings_window = Settings()
         self.settings_window.show()
         self.restricted = True
@@ -216,10 +191,6 @@ class MainTool(QMainWindow):
         # check if OK button was pressed
         if self.settings_window.exec_() == QDialog.Accepted:
             self.settings_window.apply_settings()
-            logger.debug(f'app_theme: {app_theme}')
-            logger.debug(f'app_size: {app_size}')
-            logger.debug(f'app_grid: {app_grid}')
-            logger.info('calling DecoyWindow()')
             self.decoy_window = DecoyWindow(text='Restarting App...')
             self.decoy_window.show()
             # else statement is only for testing purposes during development
@@ -235,14 +206,12 @@ class MainTool(QMainWindow):
 
     def add_new_button(self):
         """ creates an instance of AddButtonWindow() which is a QDialog """
-        logger.info('calling AddButtonWindow()')
         add_button_script = AddButtonWindow(self)
         add_button_script.show()
         self.restricted = True
         self.hide()
 
         if add_button_script.exec_() == QDialog.Accepted:
-            logger.info('calling get_input()')
             image_path, commands_list, completion_signal = add_button_script.get_input()
             if image_path:
                 with open(image_path, 'rb') as file:
@@ -259,6 +228,13 @@ class MainTool(QMainWindow):
         # show the app again
         self.show()
         self.restricted = False
+
+    def place_logo_and_title(self):
+        # Properly places the logo and title
+        x = ((app_size * app_grid + ((app_size // 5) * app_grid)) // 2) - (self.app_title_label.width() // 2) + (app_size // 3)
+        y = self.logo_button.pos().y() + app_size // 5
+        self.logo_button.setGeometry(x, y - app_size // 5, self.logo_button.width(), self.logo_button.height())
+        self.app_title_label.setGeometry(x + self.logo_button.width(), y, self.font_size * 6, int(self.font_size * 1.5))
 
     def open_tool(self, event=None, animate: bool = True):
         if self.is_small:
@@ -278,10 +254,9 @@ class MainTool(QMainWindow):
             else:
                 self.setGeometry(target_geometry)
                 self.app_launched = True
-            self.logo_button.move(
-                self.logo_button.pos().x() + (app_grid // 2) * app_size - app_size // 5,
-                self.logo_button.pos().y(),
-            )
+
+            # Properly Position the logo button
+            self.place_logo_and_title()
         else:
             self.update_dimensions()
             self.place_button(self.logo_button, 0, 0)
@@ -312,7 +287,6 @@ class MainTool(QMainWindow):
                 if (position.x(), position.y()) == self.get_grid_xy(i, j):
                     return i, j
         QMessageBox.critical(self, 'PyAutoMate', 'An Unexpected Error Occured!')
-        logger.critical('get_row_col_by_pos() error')
         sys.exit(0)
 
     def get_number_of_buttons(self):
@@ -411,16 +385,29 @@ class MainTool(QMainWindow):
                 self.show()
             else:
                 self.hide()
-        if self.floating_textbox.isHidden():
-            for key in self.allowed_keys:
-                if keyboard.is_pressed(key):
-                    while keyboard.is_pressed(key): sleep_for(50)
-                    self.start_floating_textbox()
-        else:
-            if not self.floating_textbox.text() or keyboard.is_pressed('esc'):
-                self.stop_floating_textbox()
-            elif keyboard.is_pressed('enter'):
-                self.floating_textbox.process_command()
+
+        if self.assistant_text_enabled:
+            if self.floating_textbox.is_not_visible and not self.isHidden():
+                for key in self.allowed_keys:
+                    if keyboard.is_pressed(key):
+                        while keyboard.is_pressed(key): sleep_for(50)
+                        # CAUTION: THIS IS A CHEAP TRICK TO GET THE TOOL FOCUSED ON
+                        mouse_x, mouse_y = pyautogui.position()
+                        # Quick move and get back logic
+                        pyautogui.leftClick(self.x() + 15, self.y() + 15)
+                        pyautogui.moveTo(mouse_x, mouse_y)
+                        # Now check
+                        self.floating_textbox.show()
+
+            else:
+                if not self.floating_textbox.text() or keyboard.is_pressed('esc'):
+                    self.floating_textbox.hide(animation=True)
+                elif keyboard.is_pressed('enter') and not self.isHidden():
+                    command = self.floating_textbox.text()
+                    self.floating_textbox.hide(animation=True)
+                    self.floating_textbox.process_command(command)
+
+            
 
         QTimer.singleShot(25, self.key_work)
 
@@ -443,6 +430,9 @@ class MainTool(QMainWindow):
             new_sub_menu = menu.addMenu('New')
             text_to_add = add_spaces_for_context_menu('Script', '')
             action4 = new_sub_menu.addAction(text_to_add)
+            assistant_sub_menu = menu.addMenu('Assistant')
+            text_to_add = add_spaces_for_context_menu(("✔️" if self.assistant_text_enabled else "❌") + " Text", '')
+            action6 = assistant_sub_menu.addAction(text_to_add)
             action3 = menu.addAction("Settings")
             menu.addSeparator()
             actione = menu.addAction("Exit")
@@ -456,36 +446,22 @@ class MainTool(QMainWindow):
         elif action == action2:
             self.open_tool()
         elif not self.is_small and action == action3:
-            logger.info('calling open_settings()')
-            self.stop_floating_textbox()
             self.open_settings()
-            self.start_floating_textbox()
         elif not self.is_small and action == action4:
-            logger.info('calling add_new_button()')
             self.add_new_button()
         elif not self.is_small and action == actione:
-            self.stop_floating_textbox()
+            self.floating_textbox.hide(animation=False)
             if QMessageBox.question(self, 'PyAutoMate', 'Are you sure you want to exit?') == QMessageBox.Yes:
                 save_app_code()
                 QApplication.quit()
-            else:
-                self.start_floating_textbox()
-
-    def stop_floating_textbox(self):
-        self.floating_textbox.clear()
-        self.floating_textbox.hide()
-
-    def start_floating_textbox(self):
-        self.floating_textbox.show()
-        self.floating_textbox.setFocus(Qt.OtherFocusReason)
-        self.floating_textbox.setFocus()
+        elif not self.is_small and action == action6:
+            self.assistant_text_enabled = not self.assistant_text_enabled
 
     def hide(self):
-        self.stop_floating_textbox()
+        self.floating_textbox.hide(animation=False)
         super().hide()
 
     def show(self):
-        self.start_floating_textbox()
         super().show()
 
 # end of MainTool class
@@ -1126,10 +1102,8 @@ class AddButtonWindow(QDialog):
             for line in script:
                 line = line.split()
                 self.commands_list.append(line)
-            logger.info('calling debugger()')
             approval = self.debugger()
             if approval:
-                logger.info('script accepted')
                 if not self.file_path and self.includes_icon.isChecked() and QMessageBox.critical(self, 'PyAutoMate', 
                     'The compilation cannot be done because no icon was chosen for the button. '
                     'Uncheck \'Include Icon\' to get rid of this error.'):
@@ -1137,7 +1111,6 @@ class AddButtonWindow(QDialog):
                 else:
                     self.accept()
             else:
-                logger.debug('script rejected')
                 QMessageBox.critical(self, 'PyAutoMate', 
                                      'Incorrect syntax, the script could not be compiled.')
                 self.commands_list = []
@@ -1160,7 +1133,6 @@ class AddButtonWindow(QDialog):
         ]
         try:
             for command in self.commands_list:
-                logger.debug(f'input: {command}')
                 index = self.commands_list.index(command)
                 all_categories = ['click', 'open', 'wait', 'keyboard', 'show']
                 if not command: pass
@@ -1249,9 +1221,7 @@ class AddButtonWindow(QDialog):
                         except Exception as e: print(e)
                     else: return False
                 else: return False
-                logger.debug(f'output: {self.commands_list[index]}')
         except Exception as e:
-            logger.error(e)
             return False
         return True # if no errors occur
 
@@ -1294,7 +1264,6 @@ class DraggableButton(QPushButton):
         """ debugs and compiles the script """
         commands_list = self.code_to_run
         for command in commands_list:
-            logger.info(f'input: {command}')
             if not command: continue
             else: index = commands_list.index(command)
             if command[0] == 1:
@@ -1335,9 +1304,7 @@ class DraggableButton(QPushButton):
                     commands_list[index][1] = 'press'
             elif command[0] == 5:
                 commands_list[index][0] = 'show'
-            logger.debug(f'output: {command}')
 
-        logger.info('calling AddButton()')
         add_button_window = AddButtonWindow(parent=main_tool, commands_list=commands_list, 
                                       completion_signal=self.completion_signal,
                             existing_image=self.icon_to_set)
@@ -1421,7 +1388,6 @@ class DraggableButton(QPushButton):
                 self.delete_button_event()
                 save_app_code()
             elif action == action2:
-                logger.info('calling reverse_compiler()')
                 self.reverse_compiler()
                 save_app_code()
             elif action == action3:
@@ -1554,8 +1520,6 @@ def executer(parent: QWidget, commands: list[list], comp_signal: bool=False) -> 
     main_tool.hide()
     sleep_for(100)
     for command in commands:
-        
-        logger.debug(f'executing: {command}')
         # if command is empty or just a \n
         if not command: pass
         # for mouse clicks
@@ -1642,6 +1606,7 @@ def executer(parent: QWidget, commands: list[list], comp_signal: bool=False) -> 
     main_tool.restricted = False
 
 """ executer helper functions """
+
 def find_image_location(binary_data: str, timeout: float) -> tuple:
     """
     helper function for executer to find images on the screen, 
@@ -1658,6 +1623,7 @@ def find_image_location(binary_data: str, timeout: float) -> tuple:
         except pyautogui.ImageNotFoundException:
             if time.time() - start_time > timeout:
                 return None, None
+
 def show_window(window_title: str, timeout: int=0) -> None:
     """ activates the running window with the given title """
     start_time = time.time()
@@ -1679,12 +1645,10 @@ def close_other_instances():
     # Check all running processes
     for proc in psutil.process_iter(['pid', 'name']):
         if proc.info['name'] == current_name and proc.info['pid'] != current_process.pid:
-            logger.debug(f"stopping {current_name} with PID {proc.info['pid']}")
             proc.terminate()
             try:
                 proc.wait(timeout=5)
             except TimeoutError:
-                logger.critical(f'timeout expired for process, exiting app...')
                 QMessageBox.critical(main_tool, 'PyAutoMate', 'An unexpected error occured. '
                         'Please contact the developer if the issue persists.')
                 sys.exit(1)
@@ -1695,9 +1659,11 @@ def binary_to_qicon(binary_img) -> QIcon:
     if not pixmap.loadFromData(binary_img):
         raise ValueError(f'failed to load image data for an image')
     return QIcon(pixmap)
+
 def save_app_code():
     with open('script.bin', 'wb') as file:
         pickle.dump(app_code, file)
+
 def save_app_settings():
     with open('settings.bin', 'wb') as file:
         app_settings = {
@@ -1707,6 +1673,7 @@ def save_app_settings():
             'app grid': app_grid
         }
         pickle.dump(app_settings, file)
+
 def load_app_data() -> tuple:
     with open('script.bin', 'rb') as file:
         app_code = pickle.load(file)
@@ -1717,7 +1684,6 @@ def load_app_data() -> tuple:
 """ Program Starts From Here After Imports """
 if __name__ == "__main__":
     # check for all the required files and stylesheets
-    logger.debug('checking for required files...')
     required_files = ['settings.bin', 'script.bin']
     required_stylesheets = [
         'STD_button.css', 'STD_context_menu.css', 'STD_decoy.css', 'STD_dialog.css',
@@ -1726,39 +1692,34 @@ if __name__ == "__main__":
     ]
     missing_files = [f for f in required_files + [os.path.join('stylesheets', s) 
                         for s in required_stylesheets] if not os.path.exists(f)]
+
     if missing_files:
-        logger.critical('required files or stylesheets are missing: %s', ', '.join(missing_files))
         QMessageBox.critical(None, 'PyAutoMate', 'Some required files are missing. Reinstalling the program might fix this problem.')
         sys.exit(1)
         
-    logger.debug('loading app data...')
     # load app settings and app code to global memory
     app_code, app_settings = load_app_data()
     app_hide_key = app_settings['hide key']
     app_size = int(app_settings['app size'])
     app_grid = int(app_settings['app grid'])
     app_theme = app_settings['theme']
+
     # get screen width and height
     screen_width = pyautogui.size()[0]
     screen_height = pyautogui.size()[1]
-    logger.debug('fetching the logo icon...')
     app_logo = None
     for script in app_code: 
         if script[0] == 0: 
             app_logo = script[1]
+
     # create the app root
-    logger.debug('closing other instances...')
     close_other_instances()
-    logger.debug('creating app root...')
     root_app.setWindowIcon(binary_to_qicon(app_logo))
-    logger.info('calling MainTool()')
     main_tool = MainTool()
     # Activate the Assistant
     # QTimer.singleShot(0, main_tool.activate_assistant)
     main_tool.show() # finally, show the main tool
     loading_window.hide()
     main_tool.key_work()    # activates the shortcut key of app hide
-    logger.info(f'app_exec time: {round(time.time() - start_time, 4)}')
     root_app.exec_()   # should never exit from here
-    logger.critical('the app went out of the execution loop!')
     sys.exit(1)

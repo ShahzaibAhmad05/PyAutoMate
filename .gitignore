@@ -1,0 +1,12 @@
+# debug/build files
+*.log
+*.spec
+
+# build folders
+build/
+dist/
+__pycache__/
+
+# debugging purpose/heavy files
+images/
+assistant_files.json
