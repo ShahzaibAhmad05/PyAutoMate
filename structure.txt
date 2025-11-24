@@ -11,3 +11,26 @@ This is the Necessary Structure of this App:
 
     script.bin
     settings.bin
+
+-- COMMANDS
+
+click
+    clickType coord x y
+    clickType img timeout imgID
+
+open
+    file filePath
+    link websiteLink
+
+wait
+    time seconds
+    img timeout imageID
+    key keyboardButton
+    click mouseButton
+
+key
+    type contentToType
+    press buttonsToPress
+
+show
+    windowTitle

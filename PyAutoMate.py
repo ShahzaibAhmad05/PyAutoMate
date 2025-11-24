@@ -803,10 +803,10 @@ class AddButtonWindow(QDialog):
 
             def write_script_for_action(start_time, stop_key: str, click_type: str, func_to_run: Callable):
                 if include_time:
-                    self.input_field.insertPlainText(f'wait time {round(time.time() - start_time, 0) + 0.6}\n')
+                    self.input_field.insertPlainText(f'wait time {round(time.time() - start_time + 0.6, 0)}\n')
                 while keyboard.is_pressed(stop_key): sleep_for(25)
                 location = pyautogui.position()
-                self.input_field.insertPlainText(f'click {click_type} cor {location.x} {location.y}\n')
+                self.input_field.insertPlainText(f'click {click_type} coord {location.x} {location.y}\n')
                 func_to_run(location.x, location.y)
 
             while main_loop_flag:
@@ -826,6 +826,7 @@ class AddButtonWindow(QDialog):
                         break
                     else:
                         sleep_for(25)
+
             self.move(current_position.x(), current_position.y())
         self.input_field.setFocus()
 
@@ -845,25 +846,24 @@ class AddButtonWindow(QDialog):
             # calls the dialog back to the last saved position
             option_window.move(current_position.x(), current_position.y())
             if option_window.get_selected_option().endswith('Coordinates'):
-                self.input_field.insertPlainText(f'click {button_type} cor {position.x} {position.y}\n')
+                self.input_field.insertPlainText(f'click {button_type} coord {position.x} {position.y}\n')
             elif option_window.get_selected_option().endswith('Image'):
                 id = save_screenshot(position)
-                self.input_field.insertPlainText(f'click {button_type} img 10.0 {id}\n')
+                self.input_field.insertPlainText(f'click {button_type} img 10 {id}\n')
 
         def save_screenshot(position: tuple) -> int:
             """ saves the 16x16 screenshot of the given location, and returns the save path """
             shot = pyautogui.screenshot(region=(position.x - 8, position.y - 8, 16, 16))
             loopFlag = True
+            id = 0
             while loopFlag:
                 loopFlag = False
                 id = random.randint(1000000, 9999999)
                 for script in app_code:
                     if script[0] == id:
                         loopFlag = True
-            buffer = BytesIO()
-            shot.save(buffer, format="PNG")  # Save as PNG (or another format)
-            app_code.append([id, buffer.getvalue(), None, False])
-            save_app_code()
+
+            shot.save(f'images/{id}.png')
             return id
 
         self.move(screen_width, 0)
@@ -882,12 +882,12 @@ class AddButtonWindow(QDialog):
                                                         filter="All Files (*)", 
                                                         options=QFileDialog.Options())
             if file_path:
-                self.input_field.insertPlainText(f'open loc {file_path}')
+                self.input_field.insertPlainText(f'open file {file_path}\n')
         def open_folder():
             folder_path = QFileDialog.getExistingDirectory(parent=self, caption="Select Folder", 
                                                            options=QFileDialog.Options())
             if folder_path:
-                self.input_field.insertPlainText(f'open loc {folder_path}')
+                self.input_field.insertPlainText(f'open file {folder_path}\n')
         def open_link():
             text, ok = QInputDialog.getText(self, "Open Website Link", "Paste Website Link Here:", flags=Qt.Tool)
             if ok and text:  # If user clicks OK and input is not empty
@@ -976,7 +976,10 @@ class AddButtonWindow(QDialog):
             for line in script:
                 line = line.split()
                 self.commands_list.append(line)
-            approval = self.debugger()
+
+            # TODO: Debugger implementation required here.
+
+            approval = True
             if approval:
                 if not self.file_path and self.includes_icon.isChecked() and QMessageBox.critical(self, 'PyAutoMate', 
                     'The compilation cannot be done because no icon was chosen for the button. '
@@ -988,116 +991,6 @@ class AddButtonWindow(QDialog):
                 QMessageBox.critical(self, 'PyAutoMate', 
                                      'Incorrect syntax, the script could not be compiled.')
                 self.commands_list = []
-
-    def debugger(self) -> None:
-        """ debugs and compiles the script """
-        mouse_buttons = ['left', 'right', 'middle']
-        keyboard_buttons = [
-            'left ctrl', 'alt gr', 'ctrl', 'left shift', 'left alt', 'right ctrl', 'windows', 
-            'right alt', 'alt', 'shift', 'right windows', 'right shift', 'left windows',
-            'backspace', 'caps lock', 'delete', 'down', 'end', 'enter', 'esc', 'escape',  
-            'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12',  
-            'home', 'insert', 'left', 'num lock', 'page down', 'page up', 'pause', 'print screen',  
-            'right', 'scroll lock', 'shift', 'space', 'tab', 'up',  
-            'alt', 'alt gr', 'ctrl', 'menu', 'super',  
-            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',  
-            'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',  
-            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',  
-            '`', '-', '=', '[', ']', '\\', ';', "'", ',', '.', '/'
-        ]
-        try:
-            for command in self.commands_list:
-                index = self.commands_list.index(command)
-                all_categories = ['click', 'open', 'wait', 'keyboard', 'show']
-                if not command: pass
-                elif command[0] in all_categories:
-                    self.commands_list[index][0] = all_categories.index(command[0]) + 1
-                    click_categories = ['left', 'right', 'double']
-                    click_sub_categories = ['cor', 'img']
-                    open_categories = ['loc', 'link']
-                    wait_categories = ['time', 'img', 'key']
-                    wait_sub_key_categories = ['keyboard', 'mouse']
-                    keyboard_categories = ['type', 'press']
-                    # no need for a category for show window
-                    # for clicks
-                    if self.commands_list[index][0] == 1 and self.commands_list[index][1] in click_categories:
-                        self.commands_list[index][1] = click_categories.index(command[1]) + 1
-                        self.commands_list[index][2] = click_sub_categories.index(command[2]) + 1
-                        # for coordinates clicks
-                        if self.commands_list[index][2] == 1:
-                            self.commands_list[index][3] = int(self.commands_list[index][3])
-                            self.commands_list[index][4] = int(self.commands_list[index][4])
-                        # for image clicks
-                        elif self.commands_list[index][2] == 2:
-                            self.commands_list[index][3] = float(self.commands_list[index][3])
-                            self.commands_list[index][4] = int(self.commands_list[index][4])
-                        else: return False
-                    # for opening
-                    elif self.commands_list[index][0] == 2 and self.commands_list[index][1] in open_categories:
-                        self.commands_list[index][1] = open_categories.index(command[1]) + 1
-                        # for local files
-                        if self.commands_list[index][1] == 1:
-                            try:
-                                self.commands_list[index][2] = ' '.join(self.commands_list[index][2:])
-                                del self.commands_list[index][3:]
-                            except: pass
-                        # for websites on default browser
-                        elif self.commands_list[index][1] == 2:
-                            pass
-                        else: return False
-                    # for waiting
-                    elif self.commands_list[index][0] == 3 and self.commands_list[index][1] in wait_categories:
-                        self.commands_list[index][1] = wait_categories.index(command[1]) + 1
-                        # for a specified time
-                        if self.commands_list[index][1] == 1:
-                            self.commands_list[index][2] = float(self.commands_list[index][2])
-                        # for a specific image
-                        elif self.commands_list[index][1] == 2:
-                            self.commands_list[index][2] = float(self.commands_list[index][2])
-                            self.commands_list[index][3] = int(self.commands_list[index][3])
-                        # for specific button presses
-                        elif self.commands_list[index][1] == 3 and self.commands_list[index][2] in wait_sub_key_categories:
-                            self.commands_list[index][2] = wait_sub_key_categories.index(command[2]) + 1
-                            # for keyboard button presses
-                            if (self.commands_list[index][2] == 1 and 
-                                self.commands_list[index][3] in keyboard_buttons): pass
-                            # for mouse button presses
-                            elif (self.commands_list[index][2] == 2 and 
-                                  self.commands_list[index][3] in mouse_buttons): pass
-                            else: return False
-                        else: return False
-                    # for doing some keyboard type action
-                    elif self.commands_list[index][0] == 4 and self.commands_list[index][1] in keyboard_categories:
-                        self.commands_list[index][1] = keyboard_categories.index(command[1]) + 1
-                        # for typing
-                        if self.commands_list[index][1] == 1:
-                            total_indices = len(command)
-                            try:
-                                self.commands_list[index][2] = ' '.join(self.commands_list[index][2:total_indices])
-                                for i in range(total_indices):
-                                    if i > 2:
-                                        del self.commands_list[index][i]
-                            except Exception as e: print(e)
-                        # for pressing hotkeys
-                        elif self.commands_list[index][1] == 2:
-                            total_indices = len(command)
-                            temp = ' '.join(self.commands_list[index][2:total_indices])
-                            self.commands_list[index] = [4, 2, temp]
-                        else: return False
-                    # for showing a specific window
-                    elif self.commands_list[index][0] == 5:
-                        total_indices = len(command)
-                        try:
-                            self.commands_list[index][1] = ' '.join(self.commands_list[index][1:total_indices])
-                            for i in range(total_indices):
-                                if i > 1:
-                                    del self.commands_list[index][i]
-                        except Exception as e: print(e)
-                    else: return False
-                else: return False
-        except Exception as e:
-            return False
-        return True # if no errors occur
 
     def get_input(self):
         """ Returns the input text """
@@ -1117,6 +1010,7 @@ class AddButtonWindow(QDialog):
             self.icon_label.setText(f"Selected Image: {os.path.basename(self.file_path)}")
 
 """ DraggableButton class """
+
 class DraggableButton(QPushButton):
     def __init__(self, parent, id: int, code_to_run, icon_to_set, completion_signal):
         super().__init__(parent)
@@ -1135,49 +1029,12 @@ class DraggableButton(QPushButton):
         self.setIcon(binary_to_qicon(icon_bin_data))
 
     def reverse_compiler(self) -> None:
-        """ debugs and compiles the script """
+
+        """ decompiles the script """
+
+        # TODO: rename or remove this function
+
         commands_list = self.code_to_run
-        for command in commands_list:
-            if not command: continue
-            else: index = commands_list.index(command)
-            if command[0] == 1:
-                commands_list[index][0] = 'click'
-                if command[1] == 1:
-                    commands_list[index][1] = 'left'
-                elif command[1] == 2:
-                    commands_list[index][1] = 'right'
-                elif command[1] == 3:
-                    commands_list[index][1] = 'double'
-                if command[2] == 1:
-                    commands_list[index][2] = 'cor'
-                elif command[2] == 2:
-                    commands_list[index][2] = 'img'
-            elif command[0] == 2:
-                commands_list[index][0] = 'open'
-                if command[1] == 1:
-                    commands_list[index][1] = 'loc'
-                elif command[1] == 2:
-                    commands_list[index][1] = 'link'
-            elif command[0] == 3:
-                commands_list[index][0] = 'wait'
-                if command[1] == 1:
-                    commands_list[index][1] = 'time'
-                elif command[1] == 2:
-                    commands_list[index][1] = 'img'
-                elif command[1] == 3:
-                    commands_list[index][1] = 'key'
-                    if command[2] == 1:
-                        commands_list[index][2] = 'keyboard'
-                    elif command[2] == 2:
-                        commands_list[index][2] = 'mouse'
-            elif command[0] == 4:
-                commands_list[index][0] = 'keyboard'
-                if command[1] == 1:
-                    commands_list[index][1] = 'type'
-                elif command[1] == 2:
-                    commands_list[index][1] = 'press'
-            elif command[0] == 5:
-                commands_list[index][0] = 'show'
 
         add_button_window = AddButtonWindow(parent=main_tool, commands_list=commands_list, 
                                       completion_signal=self.completion_signal,
@@ -1219,7 +1076,7 @@ class DraggableButton(QPushButton):
                 self.parent().check_snap(self, self.position)
 
     def run_button_script(self):
-        executer(self, commands=self.code_to_run, comp_signal=self.completion_signal)
+        interpreter(self, commands=self.code_to_run, comp_signal=self.completion_signal)
 
     def mouseDoubleClickEvent(self, event):
         self.run_button_script()
@@ -1376,10 +1233,11 @@ def enable_dragging(widget):
     widget.mouseMoveEvent = mouseMoveEvent
     widget.mouseReleaseEvent = mouseReleaseEvent
 
-""" executer function """
-def executer(parent: QWidget, commands: list[list], comp_signal: bool=False) -> None:
+""" interpreter function """
+
+def interpreter(parent: QWidget, commands: list[list], comp_signal: bool=False) -> None:
     """
-    takes in a list of executer readable commands with the proper format to execute them.
+    takes in a list of interpreter readable commands with the proper format to execute them.
     Command[0]: the type of the command
     Command[1]: the specification of the type
 
@@ -1393,97 +1251,118 @@ def executer(parent: QWidget, commands: list[list], comp_signal: bool=False) -> 
     main_tool.restricted = True
     main_tool.hide()
     sleep_for(100)
+
     for command in commands:
+
         # if command is empty or just a \n
         if not command: pass
+
         # for mouse clicks
-        elif command[0] == 1:
+        elif command[0] == 'click':
+
             # the click type, left, right, or double
             if command[1] == 1: click_function = pyautogui.leftClick
             elif command[1] == 2: click_function = pyautogui.rightClick
             elif command[1] == 3: click_function = pyautogui.doubleClick
+
             # click by coordinates
-            if command[2] == 1:
-                x = command[3]
-                y = command[4]
+            if command[2] == 'coord':
+                x = int(command[3])
+                y = int(command[4])
                 click_function(x, y)
+
             # click by image, also requires timeout
-            elif command[2] == 2:
+            elif command[2] == 'img':
                 timeout = command[3]
-                image_id = int(command[4])
-                for script in app_code:
-                    if script[0] == image_id:
-                        image_data = script[1]
+                # load the image
+                image_path = 'images/' + command[4] + '.png'
+                with open(image_path, 'rb') as file:
+                    image_data = file.read()
+
                 x, y = find_image_location(image_data, timeout)
                 if x and y:
                     click_function(x, y)
                 else:
                     QMessageBox.critical(parent, 'PyAutoMate', f'The required image was not Found within {timeout} seconds')
                     break
+
         # for opening
-        elif command[0] == 2:
-            # for local files
-            if command[1] == 1:
-                file_path = command[2]
+        elif command[0] == 'open':
+
+            # opening local files
+            if command[1] == 'file':
+                file_path = ''.join(command[2:])
                 if os.path.exists(file_path):
                     os.startfile(file_path)
                 else:
                     QMessageBox.critical(parent, 'PyAutoMate', f'{file_path} does not exist')
-            # for websites on default browser
-            elif command[1] == 2:
+
+            # opening websites on default browser
+            elif command[1] == 'link':
                 link = command[2]
                 webbrowser.open(link)
+
         # for waiting
-        elif command[0] == 3:
+        elif command[0] == 'wait':
+
             # for waiting for a specified time
-            if command[1] == 1:
-                sleep_time = int(command[2] * 1000)
+            if command[1] == 'time':
+                sleep_time = int(command[2]) * 1000
                 sleep_for(sleep_time)
+
             # for waiting for a specific image to appear
-            elif command[1] == 2:
-                timeout = command[2]
-                image_id = int(command[3])
-                for script in app_code:
-                    if script[0] == image_id and not find_image_location(script[1], timeout):
-                        QMessageBox.critical(parent, 'PyAutoMate', f'The required image was not Found within {timeout} seconds')
-                        break
+            elif command[1] == 'img':
+                timeout = int(command[2])
+                image_path = 'images/' + command[3] + '.png'
+                with open(image_path, 'rb') as file:
+                    image_data = file.read()
+
+                if not find_image_location(image_data, timeout):
+                    QMessageBox.critical(parent, 'PyAutoMate', f'The required image was not Found within {timeout} seconds')
+                    break
+
             # for waiting for a button press
-            elif command[1] == 3:
+            elif command[1] == 'key':
                 button = command[3]
-                # for keyboard press
-                if command[2] == 1:
-                    while not keyboard.is_pressed(button): sleep_for(25)
-                    while keyboard.is_pressed(button): sleep_for(25)
-                # for mouse press
-                elif command[2] == 2:
-                    while not mouse.is_pressed(button): sleep_for(25)
-                    while mouse.is_pressed(button): sleep_for(25)
+                while not keyboard.is_pressed(button): sleep_for(25)
+                while keyboard.is_pressed(button): sleep_for(25)
+
+            # for waiting for a mouse press
+            elif command[1] == 'click':
+                button = command[3]
+                while not mouse.is_pressed(button): sleep_for(25)
+                while mouse.is_pressed(button): sleep_for(25)
+
         # for doing some keyboard type action
-        elif command[0] == 4:
+        elif command[0] == 'key':
+
             # for typing
-            if command[1] == 1:
+            if command[1] == 'type':
                 content = command[2]
                 pyautogui.typewrite(content, interval=0.005)
+
             # for pressing hotkeys
-            elif command[1] == 2:
-                button = command[2].split()   # assuming command[2] is a list
+            elif command[1] == 'press':
+                button = command[2].split('+')   # assuming command[2] is a list
                 pyautogui.hotkey(button)
                 sleep_for(500)
-        # for activating a window
-        elif command[0] == 5:
+
+        # for showing a window
+        elif command[0] == 'show':
             window_title = command[1]
             show_window(window_title)
+
     # optionally provide a completion signal
     if comp_signal:
         QMessageBox.information(parent, 'PyAutoMate', f'Script was executed successfully')
     main_tool.show()
     main_tool.restricted = False
 
-""" executer helper functions """
+""" interpreter helper functions """
 
 def find_image_location(binary_data: str, timeout: float) -> tuple:
     """
-    helper function for executer to find images on the screen, 
+    helper function for interpreter to find images on the screen, 
     confidence=0.99 by default. Returns x and y coordinates of 
     the found image location, if not found, returns a tuple of none, none
     """
@@ -1548,8 +1427,6 @@ def save_app_settings():
         json.dump(app_settings, file, indent=4)
 
 def load_app_data() -> tuple:
-    with open('script.bin', 'rb') as file:
-        app_code = pickle.load(file)
     with open('settings.json', 'r') as file:
         app_settings = json.load(file)
     return app_code, app_settings
@@ -1558,7 +1435,7 @@ def load_app_data() -> tuple:
 
 if __name__ == "__main__":
     # check for all the required files and stylesheets
-    required_files = ['settings.json', 'script.bin']
+    required_files = ['settings.json']
     required_stylesheets = [
         'STD_button.css', 'STD_context_menu.css', 'STD_decoy.css', 'STD_dialog.css',
         'STL_context_menu.css', 'STL_decoy.css', 'STL_dialog.css', 'STF_toggle.css',
