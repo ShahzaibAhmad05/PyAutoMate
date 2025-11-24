@@ -9,6 +9,7 @@ import pickle
 from Universal import sleep_for
 from Assistant import GlobalTextBox
 import threading
+import json
 
 # need a root app to get started
 root_app = QApplication([])
@@ -27,9 +28,9 @@ class DecoyWindow(QMainWindow):
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.SplashScreen)
 
         # Logo
-        with open('settings.bin', 'rb') as file:
-            data = pickle.load(file)
-            app_size = data['app size']
+        with open('settings.json', 'r') as file:
+            data = json.load(file)
+            app_size = int(data['app size'])
             app_theme = data['theme']
         with open('logo.png', 'rb') as file:
             app_logo = file.read()
@@ -518,7 +519,7 @@ class Settings(QDialog):
         app_grid_widget = self.create_horizontal_layout(self.app_grid_label, self.app_grid_spinbox)
         main_layout.addWidget(app_grid_widget)
         dark_mode_widget = self.create_horizontal_layout(self.dark_mode_label, self.dark_mode_toggle)
-        
+
         main_layout.addWidget(dark_mode_widget)
         main_layout.addWidget(self.space_label)
         main_layout.addWidget(self.cancel_button)
@@ -1615,25 +1616,26 @@ def save_app_code():
         pickle.dump(app_code, file)
 
 def save_app_settings():
-    with open('settings.bin', 'wb') as file:
+    with open('settings.json', 'w') as file:
         app_settings = {
             'theme': app_theme,
             'app size': app_size,
             'app grid': app_grid
         }
-        pickle.dump(app_settings, file)
+        json.dump(app_settings, file, indent=4)
 
 def load_app_data() -> tuple:
     with open('script.bin', 'rb') as file:
         app_code = pickle.load(file)
-    with open('settings.bin', 'rb') as file:
-        app_settings = pickle.load(file)
+    with open('settings.json', 'r') as file:
+        app_settings = json.load(file)
     return app_code, app_settings
 
 """ Program Starts From Here After Imports """
+
 if __name__ == "__main__":
     # check for all the required files and stylesheets
-    required_files = ['settings.bin', 'script.bin']
+    required_files = ['settings.json', 'script.bin']
     required_stylesheets = [
         'STD_button.css', 'STD_context_menu.css', 'STD_decoy.css', 'STD_dialog.css',
         'STL_context_menu.css', 'STL_decoy.css', 'STL_dialog.css', 'STF_toggle.css',
@@ -1655,10 +1657,11 @@ if __name__ == "__main__":
     # get screen width and height
     screen_width = pyautogui.size()[0]
     screen_height = pyautogui.size()[1]
+
+    # get the app logo
     app_logo = None
-    for script in app_code: 
-        if script[0] == 0: 
-            app_logo = script[1]
+    with open('logo.png', 'rb') as file:
+        app_logo = file.read()
 
     # create the app root
     close_other_instances()
