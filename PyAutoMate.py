@@ -8,6 +8,7 @@ import inspect
 import pickle
 from Universal import sleep_for
 from Assistant import GlobalTextBox
+import threading
 
 # need a root app to get started
 root_app = QApplication([])
@@ -118,12 +119,6 @@ class MainTool(QMainWindow):
 
         self.app_theme = app_theme
         
-        self.allowed_keys = [  
-            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',  
-            'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',  
-            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',  
-            '`', '-', '=', '[', ']', '\\', ';', "'", ',', '.', '/'
-        ]
         # Set up the main window and object variables
         self.setWindowTitle("PyAutoMate")
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.SplashScreen)
@@ -377,39 +372,56 @@ class MainTool(QMainWindow):
             self.occupancies[i][j] = True
             self.place_button(button, row=i, col=j)
 
-    def key_work(self):
-        if keyboard.is_pressed(app_hide_key) and not self.restricted:
-            while keyboard.is_pressed(app_hide_key):
-                sleep_for(50)
-            if self.isHidden():
-                self.show()
-            else:
-                self.hide()
+    def toggle_hide_show(self):
+        """This is called from keyboard's hotkey thread."""
+        if self.restricted:
+            return
 
-        if self.assistant_text_enabled:
-            if self.floating_textbox.is_not_visible and not self.isHidden():
-                for key in self.allowed_keys:
-                    if keyboard.is_pressed(key):
-                        while keyboard.is_pressed(key): sleep_for(50)
-                        # CAUTION: THIS IS A CHEAP TRICK TO GET THE TOOL FOCUSED ON
-                        mouse_x, mouse_y = pyautogui.position()
-                        # Quick move and get back logic
-                        pyautogui.leftClick(self.x() + 15, self.y() + 15)
-                        pyautogui.moveTo(mouse_x, mouse_y)
-                        # Now check
-                        self.floating_textbox.show()
+        print("pressed")
 
-            else:
-                if not self.floating_textbox.text() or keyboard.is_pressed('esc'):
-                    self.floating_textbox.hide(animation=True)
-                elif keyboard.is_pressed('enter') and not self.isHidden():
-                    command = self.floating_textbox.text()
-                    self.floating_textbox.hide(animation=True)
-                    self.floating_textbox.process_command(command)
+        # Bounce the work to Qt's main (GUI) thread
+        QTimer.singleShot(0, self._toggle_visibility)
+
+    def _toggle_visibility(self):
+        """Runs in the Qt main thread."""
+        if self.isHidden():
+            self.show()
+        else:
+            self.hide()
+
+    # def key_work(self):
+    #     # if keyboard.is_pressed(app_hide_key) and not self.restricted:
+    #     #     while keyboard.is_pressed(app_hide_key):
+    #     #         sleep_for(50)
+    #     #     if self.isHidden():
+    #     #         self.show()
+    #     #     else:
+    #     #         self.hide()
+
+    #     if self.assistant_text_enabled:
+    #         if self.floating_textbox.is_not_visible and not self.isHidden():
+    #             for key in self.allowed_keys:
+    #                 if keyboard.is_pressed(key):
+    #                     while keyboard.is_pressed(key): sleep_for(50)
+    #                     # CAUTION: THIS IS A CHEAP TRICK TO GET THE TOOL FOCUSED ON
+    #                     mouse_x, mouse_y = pyautogui.position()
+    #                     # Quick move and get back logic
+    #                     pyautogui.leftClick(self.x() + 15, self.y() + 15)
+    #                     pyautogui.moveTo(mouse_x, mouse_y)
+    #                     # Now check
+    #                     self.floating_textbox.show()
+
+    #         else:
+    #             if not self.floating_textbox.text() or keyboard.is_pressed('esc'):
+    #                 self.floating_textbox.hide(animation=True)
+    #             elif keyboard.is_pressed('enter') and not self.isHidden():
+    #                 command = self.floating_textbox.text()
+    #                 self.floating_textbox.hide(animation=True)
+    #                 self.floating_textbox.process_command(command)
 
             
 
-        QTimer.singleShot(25, self.key_work)
+    #     QTimer.singleShot(25, self.key_work)
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -1720,6 +1732,9 @@ if __name__ == "__main__":
     # QTimer.singleShot(0, main_tool.activate_assistant)
     main_tool.show() # finally, show the main tool
     loading_window.hide()
-    main_tool.key_work()    # activates the shortcut key of app hide
+    # main_tool.key_work()    # activates the shortcut key of app hide
+
+    # UPDATE: key work using keyboard module
+    # keyboard.add_hotkey(app_hide_key, main_tool.toggle_hide_show)
     root_app.exec_()   # should never exit from here
     sys.exit(1)
