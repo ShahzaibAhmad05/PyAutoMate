@@ -118,7 +118,7 @@ class MainTool(QMainWindow):
         super().__init__()
 
         self.app_theme = app_theme
-        
+
         # Set up the main window and object variables
         self.setWindowTitle("PyAutoMate")
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.SplashScreen)
@@ -389,40 +389,6 @@ class MainTool(QMainWindow):
         else:
             self.hide()
 
-    # def key_work(self):
-    #     # if keyboard.is_pressed(app_hide_key) and not self.restricted:
-    #     #     while keyboard.is_pressed(app_hide_key):
-    #     #         sleep_for(50)
-    #     #     if self.isHidden():
-    #     #         self.show()
-    #     #     else:
-    #     #         self.hide()
-
-    #     if self.assistant_text_enabled:
-    #         if self.floating_textbox.is_not_visible and not self.isHidden():
-    #             for key in self.allowed_keys:
-    #                 if keyboard.is_pressed(key):
-    #                     while keyboard.is_pressed(key): sleep_for(50)
-    #                     # CAUTION: THIS IS A CHEAP TRICK TO GET THE TOOL FOCUSED ON
-    #                     mouse_x, mouse_y = pyautogui.position()
-    #                     # Quick move and get back logic
-    #                     pyautogui.leftClick(self.x() + 15, self.y() + 15)
-    #                     pyautogui.moveTo(mouse_x, mouse_y)
-    #                     # Now check
-    #                     self.floating_textbox.show()
-
-    #         else:
-    #             if not self.floating_textbox.text() or keyboard.is_pressed('esc'):
-    #                 self.floating_textbox.hide(animation=True)
-    #             elif keyboard.is_pressed('enter') and not self.isHidden():
-    #                 command = self.floating_textbox.text()
-    #                 self.floating_textbox.hide(animation=True)
-    #                 self.floating_textbox.process_command(command)
-
-            
-
-    #     QTimer.singleShot(25, self.key_work)
-
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
@@ -434,8 +400,6 @@ class MainTool(QMainWindow):
 
     def contextMenuEvent(self, event):
         menu = QMenu(self)
-        text_to_add = add_spaces_for_context_menu('Hide Tool', app_hide_key)
-        action1 = menu.addAction(text_to_add)
         action2 = menu.addAction('Open Tool' if self.is_small else 'Minimize Tool')
         if not self.is_small:
             menu.addSeparator()
@@ -453,8 +417,6 @@ class MainTool(QMainWindow):
 
         action = menu.exec_(self.mapToGlobal(event.pos()))
         if action is None: return
-        elif action == action1 and not self.isHidden():
-            self.hide()
         elif action == action2:
             self.open_tool()
         elif not self.is_small and action == action3:
@@ -468,13 +430,6 @@ class MainTool(QMainWindow):
                 QApplication.quit()
         elif not self.is_small and action == action6:
             self.assistant_text_enabled = not self.assistant_text_enabled
-
-    def hide(self):
-        self.floating_textbox.hide(animation=False)
-        super().hide()
-
-    def show(self):
-        super().show()
 
 # end of MainTool class
 
@@ -540,11 +495,6 @@ class Settings(QDialog):
         self.app_grid_spinbox.setFixedSize(int(app_size * 1.25), int(app_size * 0.5))
         self.app_grid_spinbox.setRange(4, 12)
         self.app_grid_spinbox.setValue(app_grid)
-        # app hide key setting
-        self.hide_key_label = QLabel(f"Hide Key: {app_hide_key}")
-        self.hide_key_selector = QPushButton('Select Key', self)
-        self.hide_key_selector.setObjectName("QPushButton")
-        self.hide_key_selector.clicked.connect(self.hide_key_selection)
         # dark mode setting
         self.dark_mode_label = QLabel("Dark Mode")
         self.dark_mode_toggle = ToggleSwitch(self, initial_state=app_theme == 'dark')
@@ -562,16 +512,14 @@ class Settings(QDialog):
         label_stylesheet(self.app_size_label)
         label_stylesheet(self.app_grid_spinbox)
         label_stylesheet(self.dark_mode_label)
-        label_stylesheet(self.hide_key_label)
 
         app_size_widget = self.create_horizontal_layout(self.app_size_label, self.app_size_spinbox)
         main_layout.addWidget(app_size_widget)
         app_grid_widget = self.create_horizontal_layout(self.app_grid_label, self.app_grid_spinbox)
         main_layout.addWidget(app_grid_widget)
         dark_mode_widget = self.create_horizontal_layout(self.dark_mode_label, self.dark_mode_toggle)
+        
         main_layout.addWidget(dark_mode_widget)
-        hide_key_widget = self.create_horizontal_layout(self.hide_key_label, self.hide_key_selector)
-        main_layout.addWidget(hide_key_widget)
         main_layout.addWidget(self.space_label)
         main_layout.addWidget(self.cancel_button)
         main_layout.addWidget(self.ok_button)
@@ -589,16 +537,6 @@ class Settings(QDialog):
         app_size = self.app_size_spinbox.value()
         app_grid = self.app_grid_spinbox.value()
         save_app_settings()
-    
-    def hide_key_selection(self):
-        global app_hide_key
-        self.hide_key_selector.setEnabled(False)
-        push_button_disabled_stylesheet(self.hide_key_selector)
-        sleep_for(100)
-        app_hide_key = keyboard.read_event().name
-        self.hide_key_label.setText(f'Hide Key: {app_hide_key}')
-        push_button_stylesheet(self.hide_key_selector)
-        self.hide_key_selector.setEnabled(True)
 
     def create_horizontal_layout(self, widget_1, widget_2) -> QWidget:
         double_widget = QWidget(self)
@@ -1679,7 +1617,6 @@ def save_app_code():
 def save_app_settings():
     with open('settings.bin', 'wb') as file:
         app_settings = {
-            'hide key': app_hide_key,
             'theme': app_theme,
             'app size': app_size,
             'app grid': app_grid
@@ -1711,7 +1648,6 @@ if __name__ == "__main__":
         
     # load app settings and app code to global memory
     app_code, app_settings = load_app_data()
-    app_hide_key = app_settings['hide key']
     app_size = int(app_settings['app size'])
     app_grid = int(app_settings['app grid'])
     app_theme = app_settings['theme']
@@ -1732,9 +1668,6 @@ if __name__ == "__main__":
     # QTimer.singleShot(0, main_tool.activate_assistant)
     main_tool.show() # finally, show the main tool
     loading_window.hide()
-    # main_tool.key_work()    # activates the shortcut key of app hide
 
-    # UPDATE: key work using keyboard module
-    # keyboard.add_hotkey(app_hide_key, main_tool.toggle_hide_show)
     root_app.exec_()   # should never exit from here
     sys.exit(1)
