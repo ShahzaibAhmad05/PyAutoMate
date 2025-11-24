@@ -1,4 +1,4 @@
-""" All Immediate Necessary Imports """
+""" All Imports """
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QHBoxLayout
 from PyQt5.QtCore import Qt, QTimer, QEventLoop
 from PyQt5.QtGui import QPixmap
@@ -10,100 +10,19 @@ from Universal import sleep_for
 from Assistant import GlobalTextBox
 import threading
 import json
-
-# need a root app to get started
-root_app = QApplication([])
-
-# start of DecoyWindow class
-class DecoyWindow(QMainWindow):
-    def __init__(self, text) -> None:
-        """ 
-        Creates a decoy window with a logo and some text alongside it.
-        Use set_text() method to change the text on the window.
-        
-        Args:
-            text (str): text to show on the decoy window.
-        """
-        super().__init__()
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.SplashScreen)
-
-        # Logo
-        with open('settings.json', 'r') as file:
-            data = json.load(file)
-            app_size = int(data['app size'])
-            app_theme = data['theme']
-        with open('logo.png', 'rb') as file:
-            app_logo = file.read()
-        self.logo_label = QLabel()
-        pixmap = QPixmap()
-        if not pixmap.loadFromData(app_logo):
-            raise ValueError('Could not load pixmap for app logo in settings')
-        self.logo_label.setPixmap(pixmap.scaled(app_size, app_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-
-        # set the screen size
-        screen = self.screen().geometry()
-        screen_width, screen_height = screen.width(), screen.height()
-
-        # set the stylesheet of the window
-        style_sheet_file = 'stylesheets/STD_decoy.css' if app_theme == 'dark' else 'stylesheets/STL_decoy.css'
-        with open(style_sheet_file, 'r') as file:
-            self.setStyleSheet(file.read())
-
-        # Text
-        self.label = QLabel(text, self)
-        self.label.setAlignment(Qt.AlignVCenter)
-        self.label.setStyleSheet(" font-size: 18px; ")
-
-        # Main widget & layout
-        central_widget = QWidget(self)
-        layout = QHBoxLayout(central_widget)
-        layout.setContentsMargins(25, 0, 25, 0)
-        layout.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        
-        # Add widgets to layout
-        layout.addWidget(self.logo_label)
-        layout.addWidget(self.label)
-        self.setCentralWidget(central_widget)
-        self.move(screen_width // 2 - self.width() // 4,
-                  screen_height // 2 - self.height() // 4)
-
-    def set_text(self, text) -> None:
-        """ method used to change the text on the label """
-        self.label.setText(text)
-        sleep_for(25)
-
-# create the loading window
-loading_window = DecoyWindow('Importing module: time')
-loading_window.show()
-# start the imports
 import time
-start_time = time.time()
-loading_window.set_text('Importing module: sys')
 import sys
-loading_window.set_text('Importing module: pyautogui')
 import pyautogui
-pyautogui.FAILSAFE = False
-loading_window.set_text('Importing module: keyboard')
 import keyboard
-loading_window.set_text('Importing module: mouse')
 import mouse
-loading_window.set_text('Importing module: callable')
 from typing import Callable
-loading_window.set_text('Importing module: pyperclip')
 import pyperclip
-loading_window.set_text('Importing module: BytesIO')
 from io import BytesIO
-loading_window.set_text('Importing module: random')
 import random
-loading_window.set_text('Importing module: Image')
 from PIL import Image
-loading_window.set_text('Importing module: webbrowser')
 import webbrowser
-loading_window.set_text('Importing module: psutil')
 import psutil
-loading_window.set_text('Importing module: pygetwindow')
 from pygetwindow import getActiveWindow, getWindowsWithTitle
-loading_window.set_text('Importing module: PyQt5')
 from PyQt5.QtWidgets import (QPushButton,
                             QDialog, QMessageBox, QVBoxLayout,
                             QTextEdit, QFileDialog, QRadioButton,
@@ -111,7 +30,11 @@ from PyQt5.QtWidgets import (QPushButton,
                             QCheckBox, QSpinBox)
 from PyQt5.QtCore import QPoint, QRect, QSize, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QIcon, QTextCharFormat, QSyntaxHighlighter, QColor, QPainter, QCursor, QFont
-loading_window.set_text('Defining local modules...')
+
+pyautogui.FAILSAFE = False
+
+# need a root app to get started
+root_app = QApplication([])
 
 # start of MainTool Class
 class MainTool(QMainWindow):
@@ -1667,10 +1590,7 @@ if __name__ == "__main__":
     close_other_instances()
     root_app.setWindowIcon(binary_to_qicon(app_logo))
     main_tool = MainTool()
-    # Activate the Assistant
-    # QTimer.singleShot(0, main_tool.activate_assistant)
     main_tool.show() # finally, show the main tool
-    loading_window.hide()
 
     root_app.exec_()   # should never exit from here
     sys.exit(1)
