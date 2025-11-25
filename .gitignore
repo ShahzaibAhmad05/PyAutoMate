@@ -13,3 +13,6 @@ assistant_files.json
 
 # temporary files
 temp.*
+
+# vscode files
+.vscode/
