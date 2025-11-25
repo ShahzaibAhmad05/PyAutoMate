@@ -5,7 +5,6 @@ import keyboard
 import threading
 import time
 import string
-from Universal import sleep_for
 import pyautogui
 from PyQt5.QtCore import QPropertyAnimation, QRect
 from PyQt5.QtCore import QEasingCurve
@@ -14,6 +13,9 @@ from PyQt5.QtCore import Qt, QTimer, QEventLoop
 from PyQt5.QtGui import QPixmap
 import json
 
+
+def sleep_for(x):
+    time.sleep(x)
 
 class GlobalTextBox(QLineEdit):
     def __init__(self, main_tool):

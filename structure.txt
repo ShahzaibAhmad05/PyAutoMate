@@ -1,17 +1,3 @@
-This is the Necessary Structure of this App:
-
-/.
-    Universal
-        main_functions.py
-
-    Assistant
-        active_textbox.py
-
-    PyAutoMate.py
-
-    script.bin
-    settings.bin
-
 -- COMMANDS
 
 click
@@ -34,3 +20,12 @@ key
 
 show
     windowTitle
+
+{
+    "scriptID": 999999,
+    "iconID": "images/icon.png",
+    "code": [[], []],
+    "completionSignal": false
+}
+
+NOTE: wherever parent is mentioned, it is MainTool unless mentioned otherwise

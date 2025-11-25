@@ -6,12 +6,13 @@ import logging
 import os
 import inspect
 import pickle
-from Universal import sleep_for
+from modules.functions import sleep_for
 from Assistant import GlobalTextBox
 import threading
 import json
 import time
 import sys
+import shutil
 import pyautogui
 import keyboard
 import mouse
@@ -30,6 +31,13 @@ from PyQt5.QtWidgets import (QPushButton,
                             QCheckBox, QSpinBox)
 from PyQt5.QtCore import QPoint, QRect, QSize, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QIcon, QTextCharFormat, QSyntaxHighlighter, QColor, QPainter, QCursor, QFont
+# self-defined functions
+from modules.getters import get_settings, get_logo_path, get_icon_path, get_script_path
+from modules.functions import save_script, delete_script, load_script, enable_dragging, generateRandomID
+from ui.settings import Settings
+from ui.scriptingDialog import ScriptingDialog
+from modules.styling import (push_button_disabled_stylesheet, push_button_stylesheet,
+                            context_menu_stylesheet, dialog_window_stylesheet)
 
 pyautogui.FAILSAFE = False
 
@@ -41,24 +49,33 @@ class MainTool(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.app_theme = app_theme
+        # setting up the settings
+        settings = get_settings()
+        self.app_theme = settings['theme']
+        self.app_grid = int(settings['grid'])
+        self.app_size = int(settings['size'])
+        self.font_size = int(self.app_size * 0.45)
 
         # Set up the main window and object variables
         self.setWindowTitle("PyAutoMate")
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.SplashScreen)
         self.setAttribute(Qt.WA_TranslucentBackground)
+
         # setup behaviour control variables
         self.message_bad_grid_given = False
         self.is_small = True
         self.app_launched = False
         self.restricted = False
         self.prev_xy = None
+
         # initialize the grid variables of the app
-        rows, cols = app_grid, app_grid + 2
+        rows, cols = self.app_grid, self.app_grid + 2
         self.occupancies = [[False for _ in range(cols)] for _ in range(rows)]
         self.snap_positions = [[self.get_grid_xy(i, j) for j in range(cols)] for i in range(rows)]
+
         # setup background color
-        self.background_color = QColor(244, 244, 244) if app_theme == 'light' else QColor(30, 30, 30)
+        self.background_color = (QColor(244, 244, 244) 
+            if self.app_theme == 'light' else QColor(30, 30, 30))
 
         # initialize the user interface
         self.init_ui()
@@ -72,7 +89,7 @@ class MainTool(QMainWindow):
         """ Initialize the UI components of the main window """
         # setup logo button
         self.logo_button = QPushButton(self)
-        self.logo_button.setIcon(binary_to_qicon(app_logo))
+        self.logo_button.setIcon(QIcon(get_logo_path()))
         self.logo_button.setStyleSheet("QPushButton { border: none; }")
         self.logo_button.mouseDoubleClickEvent = self.open_tool
         self.logo_button.mousePressEvent = self.mousePressEvent
@@ -81,37 +98,31 @@ class MainTool(QMainWindow):
 
         # setup app title
         self.app_title_label = QLabel("PyAutoMate", self)
-        font_size = int(app_size * 0.45)
-        self.font_size = font_size
         self.app_title_label.setStyleSheet(
-            f" color: rgb(0, 131, 172); font-size: {font_size}px; "
-            f" margin-top: {font_size // 12}; margin-left: {font_size // 4}; "
+            f" color: rgb(0, 131, 172); font-size: {self.font_size}px; "
+            f" margin-top: {self.font_size // 12}; margin-left: {self.font_size // 4}; "
         )
 
         # add scripted buttons
-        for script in app_code:
-            if 0 < script[0] < 1000000:
-                self.button = DraggableButton(self, script[0], script[2], script[1], script[3])
-                push_button_stylesheet(self.button)
-                self.place_button(self.button)
+        for script in os.listdir('scripts'):
+            self.button = DraggableButton(self, scriptID=script.split('.')[0])
+            push_button_stylesheet(self.button, self)
+            self.place_button(self.button)
+
         # call open_tool() to shape the app
         self.open_tool(event=None, animate=False)
-
         # Move the logo and its label to appropriate position
         self.place_logo_and_title()
         
-
-    def open_settings(self) -> None:
+    def openSettings(self) -> None:
         """ creates an instance of Settings() which is a QDialog """
-        self.settings_window = Settings()
+        self.settings_window = Settings(self)
         self.settings_window.show()
-        self.restricted = True
         self.hide()
+        
         # check if OK button was pressed
         if self.settings_window.exec_() == QDialog.Accepted:
-            self.settings_window.apply_settings()
-            self.decoy_window = DecoyWindow(text='Restarting App...')
-            self.decoy_window.show()
+            self.settings_window.save_settings()
             # else statement is only for testing purposes during development
             if os.path.exists('PyAutoMate.exe'):
                 os.startfile('PyAutoMate.exe')
@@ -121,53 +132,60 @@ class MainTool(QMainWindow):
                 sleep_for(1000)
                 self.decoy_window.hide()
         self.show()
-        self.restricted = False
 
     def add_new_button(self):
         """ creates an instance of AddButtonWindow() which is a QDialog """
-        add_button_script = AddButtonWindow(self)
-        add_button_script.show()
-        self.restricted = True
-        self.hide()
+        scriptEditor = AddButtonWindow(self, commands_list=None,
+                                            existing_image=None, completion_signal=False)
+        scriptEditor.show()
+        self.hide()     # hide main tool only after editor is shown
 
-        if add_button_script.exec_() == QDialog.Accepted:
-            image_path, commands_list, completion_signal = add_button_script.get_input()
-            if image_path:
-                with open(image_path, 'rb') as file:
-                    image_bin_data = file.read()
-            else:
-                image_bin_data = None
-            id = len(app_code)
-            app_code.append([id, image_bin_data, commands_list, completion_signal])
+        if scriptEditor.exec_() == QDialog.Accepted:
+            image_path, code, completion_signal = scriptEditor.get_input()
+            scriptID = generateRandomID()
+            iconID = None
 
-            self.button = DraggableButton(self, id, commands_list, image_bin_data, completion_signal)
-            push_button_stylesheet(self.button)
+            # save the icon if given
+            if os.path.exists(image_path):
+                iconID = generateRandomID()
+                shutil.copy(image_path, iconID)
+
+            save_script(scriptID, iconID, code, completion_signal)
+            # show the button for this instance too
+            self.button = DraggableButton(self, scriptID)
+            push_button_stylesheet(self.button, self)
             self.place_button(self.button)
-            save_app_code()
-        # show the app again
+
         self.show()
-        self.restricted = False
 
     def place_logo_and_title(self):
         # Properly places the logo and title
-        x = ((app_size * app_grid + ((app_size // 5) * app_grid)) // 2) - (self.app_title_label.width() // 2) + (app_size // 3)
-        y = self.logo_button.pos().y() + app_size // 5
-        self.logo_button.setGeometry(x, y - app_size // 5, self.logo_button.width(), self.logo_button.height())
-        self.app_title_label.setGeometry(x + self.logo_button.width(), y, self.font_size * 6, int(self.font_size * 1.5))
+        x = (((self.app_size * self.app_grid + 
+            ((self.app_size // 5) * self.app_grid)) // 2) - 
+            (self.app_title_label.width() // 2) + (self.app_size // 3))
+        y = self.logo_button.pos().y() + self.app_size // 5
+        self.logo_button.setGeometry(x, y - self.app_size // 5, 
+                                     self.logo_button.width(), 
+                                     self.logo_button.height())
+        self.app_title_label.setGeometry(x + self.logo_button.width(), y, 
+                                         self.font_size * 6, int(self.font_size * 1.5))
 
-    def open_tool(self, event=None, animate: bool = True):
+    def open_tool(self, event=None, animate: bool=True):
         if self.is_small:
             if self.app_launched:
                 self.prev_xy = [self.geometry().x(), self.geometry().y()]
 
-            window_width = (app_grid + 2) * (app_size + app_size // 10) + app_size // 10
-            window_height = (app_grid) * (app_size + app_size // 10) + (2 * app_size) // 5
+            window_width = ((self.app_grid + 2) * (self.app_size + self.app_size // 10) + 
+                self.app_size // 10)
+            window_height = ((self.app_grid) * (self.app_size + self.app_size // 10) + 
+                             (2 * self.app_size) // 5)
             target_geometry = QRect(
-                screen_width // 2 - window_width // 2 - app_size,
-                screen_height // 2 - window_height // 2 - app_size,
+                pyautogui.size()[0] // 2 - window_width // 2 - self.app_size,
+                pyautogui.size()[1] // 2 - window_height // 2 - self.app_size,
                 window_width,
                 window_height,
             )
+            
             if animate:
                 self.animate_transformation(target_geometry)
             else:
@@ -183,6 +201,7 @@ class MainTool(QMainWindow):
         self.is_small = not self.is_small
 
     def animate_transformation(self, target_geometry):
+        """ defines an animation for maximizing/minimizing the tool """
         self.animation = QPropertyAnimation(self, b"geometry")
         self.animation.setDuration(500)
         self.animation.setStartValue(self.geometry())
@@ -192,17 +211,18 @@ class MainTool(QMainWindow):
 
     def get_grid_xy(self, row=0, column=0):
         condition = row == 0 and column == 0
-        padding = app_size // 10
+        padding = self.app_size // 10
         extra = 0 if condition else padding * 2
-        return padding + column * app_size + column * padding, padding * 2 + row * app_size + row * padding + extra
+        return (padding + column * self.app_size + column * padding, 
+                padding * 2 + row * self.app_size + row * padding + extra)
 
     def get_row_col_by_pos(self, position) -> tuple:
         """ 
         - Takes: a position calculated using pyautogui.position()
         - Returns: a tuple of row, column where the position leads to
         """
-        for i in range(app_grid):
-            for j in range(app_grid+2):
+        for i in range(self.app_grid):
+            for j in range(self.app_grid+2):
                 if (position.x(), position.y()) == self.get_grid_xy(i, j):
                     return i, j
         QMessageBox.critical(self, 'PyAutoMate', 'An Unexpected Error Occured!')
@@ -230,29 +250,29 @@ class MainTool(QMainWindow):
                 if not self.message_bad_grid_given:
                     QMessageBox.critical(self, 'PyAutoMate',
                                          'Error placing widgets: button placement cancelled, '
-                                        'try increasing the app grid from PyController.exe')
+                                        'try increasing the grid from PyController.exe')
                     self.message_bad_grid_given = True
                 widget.setGeometry(0, 0, 0, 0)
                 return
 
         condition = row == 0 and col == 0
-        extra = 0 if condition else app_size // 5
+        extra = 0 if condition else self.app_size // 5
         x, y = self.get_grid_xy(row, col)
-        widget.setGeometry(x, y, app_size, app_size)
+        widget.setGeometry(x, y, self.app_size, self.app_size)
         widget.setIconSize(QSize(widget.size().width() - extra, 
                                  widget.size().height() - extra))
         self.occupancies[row][col] = True
 
     def update_dimensions(self, from_button: bool=False) -> None:
         number_of_buttons = self.get_number_of_buttons()
-        width = app_size + app_size // 5
-        height = 10 + number_of_buttons * app_size + app_size // 5 + number_of_buttons * 5
+        width = self.app_size + self.app_size // 5
+        height = 10 + number_of_buttons * self.app_size + self.app_size // 5 + number_of_buttons * 5
 
         if self.prev_xy and not from_button:
             x, y = self.prev_xy
         else:
-            x = screen_width - width - app_size // 5
-            y = screen_height // 2 - height // 2 - app_size
+            x = pyautogui.size()[0] - width - self.app_size // 5
+            y = pyautogui.size()[1] // 2 - height // 2 - self.app_size
 
         target_geometry = QRect(x, y, width, height)
         self.animate_transformation(target_geometry)
@@ -264,19 +284,19 @@ class MainTool(QMainWindow):
         """
         for row in range(len(self.occupancies)):
             if self.occupancies[row][0] == False:
-                width = app_size // 10
-                height = width * 2 + row * app_size + row * width + width * 2
+                width = self.app_size // 10
+                height = width * 2 + row * self.app_size + row * width + width * 2
                 snap_position = QPoint(width, height)
 
         button_position = button.pos()
         # Define a threshold for snapping
-        threshold = int(app_size * 0.6)
+        threshold = int(self.app_size * 0.6)
 
         # Calculate the distance between the button and the snap spot
         def check_positions(self):
-            for i in range(app_grid):
+            for i in range(self.app_grid):
                 if i == 0: continue
-                for j in range(app_grid+2):
+                for j in range(self.app_grid+2):
                     point = QPoint(self.snap_positions[i][j][0], self.snap_positions[i][j][1])
                     distance = QPoint(button_position - point).manhattanLength()
 
@@ -296,206 +316,80 @@ class MainTool(QMainWindow):
             self.occupancies[i][j] = True
             self.place_button(button, row=i, col=j)
 
-    def toggle_hide_show(self):
-        """This is called from keyboard's hotkey thread."""
-        if self.restricted:
-            return
-
-        print("pressed")
-
-        # Bounce the work to Qt's main (GUI) thread
-        QTimer.singleShot(0, self._toggle_visibility)
-
-    def _toggle_visibility(self):
-        """Runs in the Qt main thread."""
-        if self.isHidden():
-            self.show()
-        else:
-            self.hide()
-
-    def paintEvent(self, event):
+    def paintEvent(self, event=None):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         # Create rounded rectangle using QPainter
         painter.setBrush(self.background_color)
         painter.setPen(Qt.NoPen)  # Remove the border
-        painter.drawRoundedRect(self.rect(), app_size // 5, app_size // 5)
+        painter.drawRoundedRect(self.rect(), self.app_size // 5, self.app_size // 5)
         painter.end()
 
     def contextMenuEvent(self, event):
+        """ Shows a general context menu for the app """
+        # initialize the main tool menu
         menu = QMenu(self)
         action2 = menu.addAction('Open Tool' if self.is_small else 'Minimize Tool')
+
         if not self.is_small:
             menu.addSeparator()
             new_sub_menu = menu.addMenu('New')
-            text_to_add = add_spaces_for_context_menu('Script', '')
-            action4 = new_sub_menu.addAction(text_to_add)
+
+            action4 = new_sub_menu.addAction(add_spaces_for_context_menu('Script', ''))
             assistant_sub_menu = menu.addMenu('Assistant')
-            text_to_add = add_spaces_for_context_menu(("✔️" if self.assistant_text_enabled else "❌") + " Text", '')
-            action6 = assistant_sub_menu.addAction(text_to_add)
-            action3 = menu.addAction("Settings")
+
+            action6 = assistant_sub_menu.addAction(add_spaces_for_context_menu(("✔️" if self.assistant_text_enabled else "❌") + " Text", ''))
+
+            action3 = menu.addAction(add_spaces_for_context_menu("Settings", ''))
             menu.addSeparator()
-            actione = menu.addAction("Exit")
-            context_menu_stylesheet(new_sub_menu)
-        context_menu_stylesheet(menu)
+
+            actione = menu.addAction(add_spaces_for_context_menu("Exit", ''))
+            context_menu_stylesheet(new_sub_menu, self)
+            context_menu_stylesheet(assistant_sub_menu, self)
+
+        context_menu_stylesheet(menu, self)
 
         action = menu.exec_(self.mapToGlobal(event.pos()))
+
         if action is None: return
         elif action == action2:
             self.open_tool()
+
         elif not self.is_small and action == action3:
-            self.open_settings()
+            self.openSettings()
+
         elif not self.is_small and action == action4:
             self.add_new_button()
+
         elif not self.is_small and action == actione:
             self.floating_textbox.hide(animation=False)
-            if QMessageBox.question(self, 'PyAutoMate', 'Are you sure you want to exit?') == QMessageBox.Yes:
-                save_app_code()
+            if QMessageBox.question(self, 'PyAutoMate', 
+                                    'Are you sure you want to exit?') == QMessageBox.Yes:
                 QApplication.quit()
+
         elif not self.is_small and action == action6:
             self.assistant_text_enabled = not self.assistant_text_enabled
 
+    def show(self):
+        super().show()
+        self.restricted = False
+
+    def hide(self):
+        self.restricted = True
+        super().hide()
 # end of MainTool class
 
-# start of ToggleSwitch class
-class ToggleSwitch(QPushButton):
-    def __init__(self, parent=None, initial_state=False) -> None:
-        """ 
-        Initializes a QPushButton which is a toggle. Use isChecked() method to 
-        check if the button is on.
-
-        Args:
-            parent (QWidget): the parent of the button.
-            initial_state (bool: False): the initial state of the button.
-        """
-        super().__init__(parent)
-        self.setCheckable(True)  # Ensures button can be toggled
-        self.setFixedSize(int(app_size * 1.25), int(app_size * 0.5))
-        self.setChecked(initial_state)  # Set initial state
-        self.clicked.connect(self.update_style)  # Directly update style when clicked
-        self.setObjectName("toggle-switch")
-        self.update_style()
-
-    def update_style(self):
-        condition = self.isChecked()
-        style_sheet_file = 'stylesheets/STN_toggle.css' if condition else 'stylesheets/STF_toggle.css'
-        set_text_to = 'ON' if condition else 'OFF'
-        # set the stylesheet and the text
-        with open(style_sheet_file, 'r') as file:
-            self.setStyleSheet(file.read())
-        self.setText(set_text_to)
-    
-    def keyPressEvent(self, event):
-        """ Do not perform any action on a key press """
-        event.ignore()
-# end of ToggleSwitch class
-
-# start of Settings class
-class Settings(QDialog):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle('Configure App')
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.SplashScreen)
-        self.setFixedWidth(app_size * 7)  # Adjust as needed
-        self.commands_list = []
-
-        title_bar_widget = dialog_window_stylesheet(self)
-        main_widget = QWidget(self)
-        main_layout = QVBoxLayout(main_widget)
-        main_widget.setLayout(main_layout)
-
-        def label_stylesheet(widget):
-            widget.setStyleSheet(" font-size: 16px; ")
-
-        # app size setting
-        self.app_size_label = QLabel('App Size', self)
-        self.app_size_spinbox = QSpinBox(self)
-        self.app_size_spinbox.setFixedSize(int(app_size * 1.25), int(app_size * 0.5))
-        self.app_size_spinbox.setRange(30, 80)
-        self.app_size_spinbox.setValue(app_size)
-        # app grid setting
-        self.app_grid_label = QLabel('App Grid', self)
-        self.app_grid_spinbox = QSpinBox(self)
-        self.app_grid_spinbox.setFixedSize(int(app_size * 1.25), int(app_size * 0.5))
-        self.app_grid_spinbox.setRange(4, 12)
-        self.app_grid_spinbox.setValue(app_grid)
-        # dark mode setting
-        self.dark_mode_label = QLabel("Dark Mode")
-        self.dark_mode_toggle = ToggleSwitch(self, initial_state=app_theme == 'dark')
-        self.space_label = QLabel(self)     # separator
-        # OK and Cancel buttons
-        self.cancel_button = QPushButton('Cancel', self)
-        self.cancel_button.clicked.connect(self.reject)
-        self.cancel_button.setObjectName('QPushButton')
-        self.ok_button = QPushButton('Apply', self)
-        self.ok_button.clicked.connect(self.accept)
-        self.ok_button.setObjectName('QPushButton')
-        # apply styling
-        label_stylesheet(self.app_grid_label)
-        label_stylesheet(self.app_size_spinbox)
-        label_stylesheet(self.app_size_label)
-        label_stylesheet(self.app_grid_spinbox)
-        label_stylesheet(self.dark_mode_label)
-
-        app_size_widget = self.create_horizontal_layout(self.app_size_label, self.app_size_spinbox)
-        main_layout.addWidget(app_size_widget)
-        app_grid_widget = self.create_horizontal_layout(self.app_grid_label, self.app_grid_spinbox)
-        main_layout.addWidget(app_grid_widget)
-        dark_mode_widget = self.create_horizontal_layout(self.dark_mode_label, self.dark_mode_toggle)
-
-        main_layout.addWidget(dark_mode_widget)
-        main_layout.addWidget(self.space_label)
-        main_layout.addWidget(self.cancel_button)
-        main_layout.addWidget(self.ok_button)
-
-        overall_layout = QVBoxLayout(self)
-        overall_layout.addWidget(title_bar_widget)
-        overall_layout.addWidget(main_widget)
-        self.setLayout(overall_layout)
-        enable_dragging(self)       # enables the dragging for this QDialog
-
-    def apply_settings(self):
-        """ sets the app_theme, app_size, app_grid """
-        global app_theme, app_size, app_grid
-        app_theme = 'dark' if self.dark_mode_toggle.isChecked() else 'light'
-        app_size = self.app_size_spinbox.value()
-        app_grid = self.app_grid_spinbox.value()
-        save_app_settings()
-
-    def create_horizontal_layout(self, widget_1, widget_2) -> QWidget:
-        double_widget = QWidget(self)
-        double_layout = QHBoxLayout(double_widget)
-        double_layout.setContentsMargins(0, 0, 0, 0)  # Remove extra margins
-        double_layout.setSpacing(10)  # Adjust spacing between widgets
-        double_widget.setLayout(double_layout)
-        double_layout.addWidget(widget_1)
-        double_layout.addWidget(widget_2)
-        return double_widget
-# end of Settings
-
-# start of ScriptingDialog class
-class ScriptingDialog(QDialog):
-    def __init__(self, parent, window_title):
-        super().__init__(parent)
-        self.setWindowTitle(window_title)
-        self.main_layout = QVBoxLayout(self)
-        self.labels = []
-        self.buttons = []
-        self.radios = []
-
-    def add_label(self, text: str):
-        self.label = QLabel(text, self)
-        self.main_layout.addWidget(self.label)
-# end of ScriptingDialog class
-
+        # -- TODO: I was working here
 # start of ScriptOption class
 class ScriptOption(QDialog):
-    def __init__(self, ok_button_name: str, functions: dict[str, Callable]=None, 
+    def __init__(self, parent, ok_button_name: str, functions: dict[str, Callable]=None, 
                  radios: list[str]=None, inputs: list[str]=None):
         super().__init__()
+
+        self.parent = parent
         self.setWindowTitle('Select An Option')
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.SplashScreen)
-        self.setFixedWidth(app_size * 7)
+        self.setFixedWidth(self.parent.app_size * 7)
         title_bar_widget = dialog_window_stylesheet(self)
         main_widget = QWidget(self)
         main_layout = QVBoxLayout(self)
@@ -552,9 +446,11 @@ class ScriptOption(QDialog):
 # start of CustomTextEdit class
 class CustomTextEdit(QTextEdit):
     def __init__(self, parent):
-        super().__init__(parent)
+        super().__init__()
+        
+        self.parent = parent
         self.highlighter = KeywordHighlighter(self.document())
-        self.setFixedHeight(app_size * 7)
+        self.setFixedHeight(self.parent.app_size * 7)
 
     def export_script(self):
         file_path, _ = QFileDialog.getSaveFileName(parent=self, caption='Export Script',
@@ -577,7 +473,7 @@ class CustomTextEdit(QTextEdit):
         action3 = menu.addAction("Help")
         menu.addSeparator()
         actione = menu.addAction("Back")
-        context_menu_stylesheet(menu)
+        context_menu_stylesheet(menu, self.parent)
 
         action = menu.exec_(event.globalPos())
         if action is None: return
@@ -652,14 +548,16 @@ class KeywordHighlighter(QSyntaxHighlighter):
 
 """ AddButtonWindow Class """
 class AddButtonWindow(QDialog):
-    def __init__(self, parent, commands_list: list[list]=None, existing_image: str=None, completion_signal=False):
+    def __init__(self, parent, commands_list: list[list], existing_image: str, completion_signal):
         super().__init__(parent)
+
+        self.parent = parent
         self.setWindowTitle("Script Editor")
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.SplashScreen)
-        self.setFixedWidth(int(screen_width * 0.75))
+        self.setFixedWidth(int(pyautogui.size()[0] * 0.75))
         self.parent = parent
         self.commands_list = []
-        title_bar_widget = dialog_window_stylesheet(self)
+        title_bar_widget = dialog_window_stylesheet(self, self.parent)
 
         # Layout for the second window
         scripting_buttons_layout = QVBoxLayout()
@@ -696,7 +594,7 @@ class AddButtonWindow(QDialog):
             else:
                 QTextEdit.wheelEvent(text_edit, event)  # Normal scrolling
 
-        self.input_field = CustomTextEdit(self)
+        self.input_field = CustomTextEdit(self.parent)
         font = self.input_field.font()
         font.setPointSize(14)
         self.input_field.setFont(font)
@@ -776,29 +674,29 @@ class AddButtonWindow(QDialog):
 
         # center the window on the screen
         self.adjustSize()
-        self.move(screen_width // 2 - self.width() // 2, screen_height // 2 - self.height() // 2)
+        self.move(pyautogui.size()[0] // 2 - self.width() // 2, pyautogui.size()[1] // 2 - self.height() // 2)
         
     def set_icon_or_not(self):
         if self.includes_icon.isChecked():
             self.select_icon_button.setEnabled(True)
-            push_button_stylesheet(self.select_icon_button)
+            push_button_stylesheet(self.select_icon_button, self.parent)
             self.icon_label.setText(f'Icon: Selected' if self.file_path else 'Icon: Not Selected')
         else:
             self.select_icon_button.setEnabled(False)
-            push_button_disabled_stylesheet(self.select_icon_button)
+            push_button_disabled_stylesheet(self.select_icon_button, self.parent)
             self.icon_label.setText('Icon: Disabled')
 
     def action_recorder(self):
         """ the best of all script writer buttons, records clicks, double clicks automatically, with time intervals too """
         # self.button_references[0].setEnabled(False)
-        option_window = ScriptOption("Start Recording", radios=['Add Time Intervals', 'Ignore Time Intervals'])
+        option_window = ScriptOption(self.parent, "Start Recording", radios=['Add Time Intervals', 'Ignore Time Intervals'])
 
         if option_window.exec_() == QDialog.Accepted:
             QMessageBox.information(self, 'PyAutoMate', 'Usage:\n  l -> left click\n'
                                     '  r -> right click\n  d -> double click')
             include_time = True if option_window.get_selected_option().startswith('Add') else False
             current_position = self.pos()
-            self.move(screen_width, 0)
+            self.move(pyautogui.size()[0], 0)
             main_loop_flag = True
 
             def write_script_for_action(start_time, stop_key: str, click_type: str, func_to_run: Callable):
@@ -836,7 +734,7 @@ class AddButtonWindow(QDialog):
         def capture(button_type):
             # saves the current position to call it back later
             current_position = option_window.pos()
-            option_window.move(screen_width, 0)
+            option_window.move(pyautogui.size()[0], 0)
             if button_type == 'double':
                 button_to_wait = 'left'
             else: button_to_wait = button_type
@@ -855,18 +753,12 @@ class AddButtonWindow(QDialog):
             """ saves the 16x16 screenshot of the given location, and returns the save path """
             shot = pyautogui.screenshot(region=(position.x - 8, position.y - 8, 16, 16))
             loopFlag = True
-            id = 0
-            while loopFlag:
-                loopFlag = False
-                id = random.randint(1000000, 9999999)
-                for script in app_code:
-                    if script[0] == id:
-                        loopFlag = True
+            id = generateRandomID()
 
-            shot.save(f'images/{id}.png')
+            shot.save(get_icon_path(id))
             return id
 
-        self.move(screen_width, 0)
+        self.move(pyautogui.size()[0], 0)
         functions = {'Left Click': lambda: capture("left"), 
                      'Right Click': lambda: capture("right"), 
                      'Double Click': lambda: capture("double")}
@@ -894,7 +786,7 @@ class AddButtonWindow(QDialog):
                 self.input_field.insertPlainText(f'open link {text}\n')
 
         context_menu = QMenu(self)
-        context_menu_stylesheet(context_menu)
+        context_menu_stylesheet(context_menu, self.parent)
         action1 = context_menu.addAction("Select File")
         text_to_add = add_spaces_for_context_menu("Select Folder", '')
         action2 = context_menu.addAction(text_to_add)
@@ -1012,85 +904,80 @@ class AddButtonWindow(QDialog):
 """ DraggableButton class """
 
 class DraggableButton(QPushButton):
-    def __init__(self, parent, id: int, code_to_run, icon_to_set, completion_signal):
+    def __init__(self, parent, scriptID):
         super().__init__(parent)
+
+        self.parent = parent
+        self.scriptID = scriptID
         self.dragging = False
         self.position = (0, 0)
-        self.code_to_run = code_to_run
-        self.icon_to_set = icon_to_set
-        self.id = id
-        self.completion_signal = completion_signal
-        self.window = parent
+
+        # setup button attributes using refresh
+        self.refresh()
+
+        # additional setup
         self.setObjectName("QPushButton")
-        if icon_to_set is not None:
-            self.define_icon(self.icon_to_set)
+        self.parent = parent
 
-    def define_icon(self, icon_bin_data):
-        self.setIcon(binary_to_qicon(icon_bin_data))
-
-    def reverse_compiler(self) -> None:
-
-        """ decompiles the script """
-
-        # TODO: rename or remove this function
-
-        commands_list = self.code_to_run
-
-        add_button_window = AddButtonWindow(parent=main_tool, commands_list=commands_list, 
+    def edit_script(self) -> None:
+        """ allows the user to edit the script """
+        add_button_window = AddButtonWindow(parent=self.parent, commands_list=self.code, 
                                       completion_signal=self.completion_signal,
-                            existing_image=self.icon_to_set)
-        main_tool.restricted = True
-        main_tool.hide()
+                            existing_image=get_icon_path(self.iconID))
+        self.parent.hide()
 
         if add_button_window.exec_() == QDialog.Accepted:
-            # If OK was pressed, display the input from the second window
-            image_path, commands_list, completion_signal = add_button_window.get_input()
-            image_bin_data = None
-            self.completion_signal = completion_signal
-            self.code_to_run = commands_list
-            if image_path and image_path != self.icon_to_set:
-                with open(image_path, 'rb') as file:
-                    image_bin_data = file.read()
-                self.icon_to_set = image_bin_data
-                self.define_icon(image_bin_data)
-            for script in app_code:
-                index = app_code.index(script)
-                if script[0] == self.id:
-                    if image_path != self.icon_to_set: app_code[index][1] = image_bin_data
-                    app_code[index][2] = commands_list
-                    app_code[index][3] = completion_signal
-            save_app_code()
-        main_tool.show()
-        main_tool.restricted = False
 
-    def delete_button_event(self):
-        if not self.parent().is_small:
-            if QMessageBox.question(self, 'PyAutoMate', 'Are you sure you want to delete this button?') == QMessageBox.Yes:
-                for script in app_code:
-                    if script[0] == self.id:
-                        app_code.remove(script)
-                i, j = self.parent().get_row_col_by_pos(self.position)
-                self.parent().occupancies[i][j] = False
-                self.hide()
-            else:
-                self.parent().check_snap(self, self.position)
+            # update the attributes of the current button
+            self.iconID, self.code, self.completion_signal = add_button_window.get_input()
+            # save the updated script
+            save_script(self.id, self.code, self.iconID, self.completion_signal)
+            self.refresh()
 
-    def run_button_script(self):
-        interpreter(self, commands=self.code_to_run, comp_signal=self.completion_signal)
+        self.parent.show()
 
-    def mouseDoubleClickEvent(self, event):
-        self.run_button_script()
+    def deleteButton(self):
+        if QMessageBox.question(self, 'PyAutoMate', 'Are you sure you want to delete this button?') == QMessageBox.Yes:
+            delete_script(self.scriptID, self.iconID)
+            i, j = self.parent().get_row_col_by_pos(self.position)
+            self.parent().occupancies[i][j] = False
+            self.hide()
+        else:
+            # place the button back
+            self.parent().check_snap(self, self.position)
+
+    def run_script(self):
+        interpreter(self.parent, commands=self.code, comp_signal=self.completion_signal)
+
+    def refresh(self):
+        """ refreshes the button's attributes from the saved script data """
+        script_data = load_script(self.scriptID)        # load the script data
+        self.code = script_data['code']
+        self.iconID = script_data['iconID']
+        self.completion_signal = script_data['completionSignal']
+
+        self.updateIcon()
+
+    def updateIcon(self):
+        self.setIcon(QIcon(get_icon_path(self.iconID)))
+
+    def mouseDoubleClickEvent(self, event: None) -> None:
+        self.run_script()
+
     def mousePressEvent(self, event):
         if self.parent().is_small and event.button() == Qt.LeftButton:
+            # wait for the mouse button to be released
             while mouse.is_pressed('left'): sleep_for(25)
-            self.run_button_script()
+            self.run_script()
         else:
             self.position = self.pos()
             self.dragging = True
             self.drag_start_position = event.pos()
+
     def mouseMoveEvent(self, event):
         if self.dragging:  # Allow movement only if dragging is active and not snapped
             self.move(self.mapToParent(event.pos() - self.drag_start_position))
+
     def mouseReleaseEvent(self, event):
         if self.dragging:
             self.dragging = False
@@ -1098,55 +985,56 @@ class DraggableButton(QPushButton):
             self.parent().check_snap(self, self.position)
 
     def contextMenuEvent(self, event):
-        if not self.parent().is_small:
-            menu = QMenu(self)
-            text_to_add = add_spaces_for_context_menu("Run Script", '')
-            action4 = menu.addAction(text_to_add)
-            menu.addSeparator()
-            text_to_add = add_spaces_for_context_menu("Edit Script", '')
-            action2 = menu.addAction(text_to_add)
-            action3 = menu.addAction("Add Icon" if self.icon_to_set is None else 'Edit Icon')
-            action5 = None
-            if self.icon_to_set is not None:
-                text_to_add = add_spaces_for_context_menu("Remove Icon", '')
-                action5 = menu.addAction(text_to_add)
-            menu.addSeparator()
-            action1 = menu.addAction("Delete")
-            context_menu_stylesheet(menu)
+        if self.parent().is_small: return
+        # initialize context menu
+        menu = QMenu(self)
 
-            action = menu.exec_(self.mapToGlobal(event.pos()))
-            if action == action1:
-                self.delete_button_event()
-                save_app_code()
-            elif action == action2:
-                self.reverse_compiler()
-                save_app_code()
-            elif action == action3:
-                image_path, _ = QFileDialog.getOpenFileName(
-                                    parent=self,
-                                    caption="Select An Image",
-                                    filter="Image Files (*.png *.jpg *.jpeg *.bmp *.gif *.webp *.tiff *.svg);;All Files (*)",
-                                    options=QFileDialog.Options())
-                if image_path:
-                    with open(image_path, 'rb') as file:
-                        image_bin_data = file.read()
-                    self.icon_to_set = image_bin_data
-                    self.define_icon(image_bin_data)
-                    for script in app_code:
-                        index = app_code.index(script)
-                        if script[0] == self.id:
-                            app_code[index][1] = image_bin_data
-                    save_app_code()
-            elif action == action4:
-                self.run_button_script()
-            elif action5 and action == action5:
-                self.setIcon(QIcon())
-                self.icon_to_set = None
-                for script in app_code:
-                    index = app_code.index(script)
-                    if script[0] == self.id:
-                        app_code[index][1] = None
-                save_app_code()
+        # create options in the menu
+        action1 = menu.addAction(add_spaces_for_context_menu("Run Script", ''))
+        menu.addSeparator()
+        action2 = menu.addAction(add_spaces_for_context_menu("Edit Script", ''))
+        action3 = menu.addAction(add_spaces_for_context_menu(
+            "Add Icon" if self.icon_to_set is None else 'Edit Icon'))
+        action5 = None
+        if self.iconID is not None:
+            text_to_add = add_spaces_for_context_menu("Remove Icon", '')
+            action5 = menu.addAction(text_to_add)
+        menu.addSeparator()
+        action6 = menu.addAction("Delete")
+
+        context_menu_stylesheet(menu, self.parent)       # set stylesheet for context menu
+        action = menu.exec_(self.mapToGlobal(event.pos()))  # run context menu
+   
+        if action == action1:
+            self.run_script()
+
+        elif action == action2:
+            self.edit_script()
+            
+        elif action == action3:
+            image_path, _ = QFileDialog.getOpenFileName(
+                                parent=self,
+                                caption="Select An Image",
+                                filter="Image Files (*.png *.jpg *.jpeg *.bmp *.gif *.webp *.tiff *.svg);;All Files (*)",
+                                options=QFileDialog.Options())
+            if not os.path.exists(image_path): return       # make sure we have a valid path
+            # remove the old image
+            if os.path.exists(get_icon_path(self.iconID)): 
+                os.remove(get_icon_path(self.iconID))
+
+            # save the icon in the script
+            shutil.copy(image_path, get_icon_path(self.scriptID))
+            save_script(self.scriptID, self.code, self.scriptID, 
+                        self.completion_signal)
+            self.refresh()      # refresh to apply changes
+
+        elif action5 and action == action5:
+            # remove the icon from script file
+            save_script(self.scriptID, self.code, None, self.completion_signal)
+            self.refresh()
+            
+        elif action == action6:
+            self.deleteButton()
 # end of DraggableButton class
 
 def add_spaces_for_context_menu(text: str, shortcut_key: str, space_rule: int=22) -> str:
@@ -1168,74 +1056,11 @@ def add_spaces_for_context_menu(text: str, shortcut_key: str, space_rule: int=22
     text += shortcut_key
     return text
 
-def context_menu_stylesheet(widget):
-    widget.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint)
-    widget.setAttribute(Qt.WA_TranslucentBackground)
-    font = QFont("Arial", 10)
-    widget.setFont(font)
-    
-    style_sheet_file = 'stylesheets/STL_context_menu.css' if app_theme == 'light' else 'stylesheets/STD_context_menu.css'
-    with open(style_sheet_file, 'r') as file:
-        widget.setStyleSheet(file.read())
 
-def dialog_window_stylesheet(dialog_window):
-    # Create title and close button
-    title_label = QLabel(dialog_window.windowTitle())
-    title_label.setObjectName("title-label")
-    close_button = QPushButton("X")
-    close_button_size = int(app_size / 1.75)
-    close_button.setFixedSize(close_button_size, close_button_size)
-    close_button.setObjectName("close-button")
-    close_button.clicked.connect(dialog_window.reject)
-
-    # Layout for title bar
-    Hlayout = QHBoxLayout()
-    Hlayout.addWidget(title_label)
-    Hlayout.addWidget(close_button, alignment=Qt.AlignRight)
-    title_bar_widget = QWidget(dialog_window)
-    title_bar_widget.setLayout(Hlayout)
-
-    style_sheet_file = 'stylesheets/STL_dialog.css' if app_theme == 'light' else 'stylesheets/STD_dialog.css'
-    with open(style_sheet_file, 'r') as file:
-        dialog_window.setStyleSheet(file.read())
-    return title_bar_widget
-
-def push_button_stylesheet(button):
-    style_sheet_file = 'stylesheets/STL_button.css' if app_theme == 'light' else 'stylesheets/STD_button.css'
-    with open(style_sheet_file, 'r') as file:
-        button.setStyleSheet(file.read())
-
-def push_button_disabled_stylesheet(button):
-    style_sheet_file = 'stylesheets/STL_button_disabled.css' if app_theme == 'light' else 'stylesheets/STD_button_disabled.css'
-    with open(style_sheet_file, 'r') as file:
-        button.setStyleSheet(file.read())
-
-def enable_dragging(widget):
-    widget.is_dragging = False
-    widget.drag_position = QPoint()
-
-    def mousePressEvent(event):
-        if event.button() == Qt.LeftButton:
-            widget.is_dragging = True
-            widget.drag_position = event.globalPos() - widget.pos()
-    def mouseMoveEvent(event):
-        if widget.is_dragging and event.buttons() == Qt.LeftButton:
-            widget.move(event.globalPos() - widget.drag_position)
-    def mouseReleaseEvent(event):
-        if widget.is_dragging:
-            widget.is_dragging = False
-            x = max(0, min(widget.x(), screen_width - widget.width()))
-            y = max(0, min(widget.y(), screen_height - widget.height()))
-            widget.move(x, y)
-            event.accept()
-
-    widget.mousePressEvent = mousePressEvent
-    widget.mouseMoveEvent = mouseMoveEvent
-    widget.mouseReleaseEvent = mouseReleaseEvent
 
 """ interpreter function """
 
-def interpreter(parent: QWidget, commands: list[list], comp_signal: bool=False) -> None:
+def interpreter(parent, commands: list[list], comp_signal: bool=False) -> None:
     """
     takes in a list of interpreter readable commands with the proper format to execute them.
     Command[0]: the type of the command
@@ -1248,8 +1073,7 @@ def interpreter(parent: QWidget, commands: list[list], comp_signal: bool=False) 
     param: dialogs_parent (ptr) points to the window hosting the dialogs, i.e. small tool
 
     """
-    main_tool.restricted = True
-    main_tool.hide()
+    parent.hide()
     sleep_for(100)
 
     for command in commands:
@@ -1350,13 +1174,13 @@ def interpreter(parent: QWidget, commands: list[list], comp_signal: bool=False) 
         # for showing a window
         elif command[0] == 'show':
             window_title = command[1]
-            show_window(window_title)
+            show_window(window_title, parent)
 
     # optionally provide a completion signal
     if comp_signal:
         QMessageBox.information(parent, 'PyAutoMate', f'Script was executed successfully')
-    main_tool.show()
-    main_tool.restricted = False
+
+    parent.show()
 
 """ interpreter helper functions """
 
@@ -1377,7 +1201,7 @@ def find_image_location(binary_data: str, timeout: float) -> tuple:
             if time.time() - start_time > timeout:
                 return None, None
 
-def show_window(window_title: str, timeout: int=0) -> None:
+def show_window(window_title: str, parent, timeout: int=0) -> None:
     """ activates the running window with the given title """
     start_time = time.time()
     while True:
@@ -1388,7 +1212,7 @@ def show_window(window_title: str, timeout: int=0) -> None:
             win.maximize()
             break
         elif time.time() - start_time > timeout:
-            QMessageBox.critical(main_tool, 'PyAutoMate', f'Window with title {window_title} was not found')
+            QMessageBox.critical(parent, 'PyAutoMate', f'Window with title {window_title} was not found')
             break
 
 def close_other_instances():
@@ -1402,39 +1226,16 @@ def close_other_instances():
             try:
                 proc.wait(timeout=5)
             except TimeoutError:
-                QMessageBox.critical(main_tool, 'PyAutoMate', 'An unexpected error occured. '
+                QMessageBox.critical(None, 'PyAutoMate', 'An unexpected error occured. '
                         'Please contact the developer if the issue persists.')
                 sys.exit(1)
 
-def binary_to_qicon(binary_img) -> QIcon:
-    pixmap = QPixmap()
-    # if statement required for this function
-    if not pixmap.loadFromData(binary_img):
-        raise ValueError(f'failed to load image data for an image')
-    return QIcon(pixmap)
 
-def save_app_code():
-    with open('script.bin', 'wb') as file:
-        pickle.dump(app_code, file)
-
-def save_app_settings():
-    with open('settings.json', 'w') as file:
-        app_settings = {
-            'theme': app_theme,
-            'app size': app_size,
-            'app grid': app_grid
-        }
-        json.dump(app_settings, file, indent=4)
-
-def load_app_data() -> tuple:
-    with open('settings.json', 'r') as file:
-        app_settings = json.load(file)
-    return app_code, app_settings
 
 """ Program Starts From Here After Imports """
 
-if __name__ == "__main__":
-    # check for all the required files and stylesheets
+def main():
+    # check for any missing files and stylesheets
     required_files = ['settings.json']
     required_stylesheets = [
         'STD_button.css', 'STD_context_menu.css', 'STD_decoy.css', 'STD_dialog.css',
@@ -1447,27 +1248,20 @@ if __name__ == "__main__":
     if missing_files:
         QMessageBox.critical(None, 'PyAutoMate', 'Some required files are missing. Reinstalling the program might fix this problem.')
         sys.exit(1)
-        
-    # load app settings and app code to global memory
-    app_code, app_settings = load_app_data()
-    app_size = int(app_settings['app size'])
-    app_grid = int(app_settings['app grid'])
-    app_theme = app_settings['theme']
 
-    # get screen width and height
-    screen_width = pyautogui.size()[0]
-    screen_height = pyautogui.size()[1]
-
-    # get the app logo
-    app_logo = None
-    with open('logo.png', 'rb') as file:
-        app_logo = file.read()
+    # create the dirs if not exist
+    os.makedirs('images', exist_ok=True)
+    os.makedirs('scripts', exist_ok=True)
 
     # create the app root
     close_other_instances()
-    root_app.setWindowIcon(binary_to_qicon(app_logo))
+    root_app.setWindowIcon(QIcon(get_logo_path()))
+
     main_tool = MainTool()
     main_tool.show() # finally, show the main tool
 
     root_app.exec_()   # should never exit from here
     sys.exit(1)
+
+if __name__ == "__main__":
+    main()

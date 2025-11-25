@@ -1,7 +1,7 @@
 import pickle
 from PyQt5.QtGui import QIcon, QPixmap
 import os
-from _dev_variables import data_file, app_version
+from development._dev_variables import data_file, app_version
 import platform
 import psutil
 import json
@@ -17,8 +17,8 @@ if __name__ == "__main__":
     """ for testing purposes """
     app_settings = {
         'theme': 'light',
-        'app size': '45',
-        'app grid': '5'
+        'size': '45',
+        'grid': '5'
     }
     logo_icon = None
     # with open('_dev_img/logo.png', 'rb') as file:

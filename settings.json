@@ -1,5 +1,5 @@
 {
-    "theme": "dark",
-    "app size": 45,
-    "app grid": 5
+    "theme": "light",
+    "size": "45",
+    "grid": "5"
 }
