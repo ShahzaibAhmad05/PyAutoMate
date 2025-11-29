@@ -1,11 +1,7 @@
-from PyQt5.QtWidgets import (QPushButton,
-                            QDialog, QMessageBox, QVBoxLayout,
-                            QTextEdit, QFileDialog, QRadioButton,
-                            QButtonGroup, QMenu, QInputDialog, QLineEdit,
-                            QCheckBox, QSpinBox)
+from PyQt5.QtWidgets import QPushButton
 
 class ToggleSwitch(QPushButton):
-    def __init__(self, parent, initial_state=False) -> None:
+    def __init__(self, mainTool, initial_state=False) -> None:
         """ 
         Initializes a QPushButton which is a toggle. Use isChecked() method to 
         check if the button is on.
@@ -14,9 +10,9 @@ class ToggleSwitch(QPushButton):
             parent (QWidget): the parent of the button.
             initial_state (bool: False): the initial state of the button.
         """
-        super().__init__(parent)
+        super().__init__(mainTool)
         self.setCheckable(True)  # Ensures button can be toggled
-        self.setFixedSize(int(self.parent.app_size * 1.25), int(self.parent.app_size * 0.5))
+        self.setFixedSize(int(self.mainTool.app_size * 1.25), int(self.mainTool.app_size * 0.5))
         self.setChecked(initial_state)  # Set initial state
         self.clicked.connect(self.update_style)  # Directly update style when clicked
         self.setObjectName("toggle-switch")
