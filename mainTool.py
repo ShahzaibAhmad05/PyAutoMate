@@ -92,16 +92,17 @@ class MainTool(QMainWindow):
         self.open_tool(event=None, animate=False)
         # Move the logo and its label to appropriate position
         self.place_logo_and_title()
+        # Activate sub-windows
+        self.settingsWindow = Settings(self)
         
     def openSettings(self) -> None:
         """ creates an instance of Settings() which is a QDialog """
-        self.settings_window = Settings(self)
-        self.settings_window.show()
+        self.settingsWindow.show()
         self.hide()
         
         # check if OK button was pressed
-        if self.settings_window.exec_() == QDialog.Accepted:
-            self.settings_window.save_settings()
+        if self.settingsWindow.exec_() == QDialog.Accepted:
+            self.settingsWindow.save_settings()
             # else statement is only for testing purposes during development
             if os.path.exists('PyAutoMate.exe'):
                 os.startfile('PyAutoMate.exe')
@@ -112,15 +113,15 @@ class MainTool(QMainWindow):
                 self.decoy_window.hide()
         self.show()
 
-    def add_new_button(self):
+    def addNewButton(self):
         """ creates an instance of AddButtonWindow() which is a QDialog """
         scriptEditor = AddButtonWindow(self, commands_list=None,
-                                            existing_image=None, completion_signal=False)
+                                            existing_image=None, completionSignal=False)
         scriptEditor.show()
         self.hide()     # hide main tool only after editor is shown
 
         if scriptEditor.exec_() == QDialog.Accepted:
-            image_path, code, completion_signal = scriptEditor.get_input()
+            image_path, code, completionSignal = scriptEditor.get_input()
             scriptID = generateRandomID()
             iconID = None
 
@@ -129,7 +130,7 @@ class MainTool(QMainWindow):
                 iconID = generateRandomID()
                 shutil.copy(image_path, iconID)
 
-            save_script(scriptID, iconID, code, completion_signal)
+            save_script(scriptID, iconID, code, completionSignal)
             # show the button for this instance too
             self.button = DraggableButton(self, scriptID)
             push_button_stylesheet(self.button, self)
@@ -137,17 +138,69 @@ class MainTool(QMainWindow):
 
         self.show()
 
-    def place_logo_and_title(self):
-        # Properly places the logo and title
-        x = (((self.app_size * self.app_grid + 
-            ((self.app_size // 5) * self.app_grid)) // 2) - 
-            (self.app_title_label.width() // 2) + (self.app_size // 3))
-        y = self.logo_button.pos().y() + self.app_size // 5
-        self.logo_button.setGeometry(x, y - self.app_size // 5, 
-                                     self.logo_button.width(), 
-                                     self.logo_button.height())
-        self.app_title_label.setGeometry(x + self.logo_button.width(), y, 
-                                         self.font_size * 6, int(self.font_size * 1.5))
+    def paintEvent(self, event=None):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        # Create rounded rectangle using QPainter
+        painter.setBrush(self.background_color)
+        painter.setPen(Qt.NoPen)  # Remove the border
+        painter.drawRoundedRect(self.rect(), self.app_size // 5, self.app_size // 5)
+        painter.end()
+
+    def contextMenuEvent(self, event):
+        """ Shows a general context menu for the app """
+        # initialize the main tool menu
+        menu = QMenu(self)
+        action2 = menu.addAction('Open Tool' if self.is_small else 'Minimize Tool')
+
+        if not self.is_small:
+            menu.addSeparator()
+            new_sub_menu = menu.addMenu('New')
+
+            action4 = new_sub_menu.addAction(add_spaces_for_context_menu('Script', ''))
+            assistant_sub_menu = menu.addMenu('Assistant')
+
+            action6 = assistant_sub_menu.addAction(add_spaces_for_context_menu(("✔️" if self.assistant_text_enabled else "❌") + " Text", ''))
+
+            action3 = menu.addAction(add_spaces_for_context_menu("Settings", ''))
+            menu.addSeparator()
+
+            actione = menu.addAction(add_spaces_for_context_menu("Exit", ''))
+            context_menu_stylesheet(new_sub_menu, self)
+            context_menu_stylesheet(assistant_sub_menu, self)
+
+        context_menu_stylesheet(menu, self)
+
+        action = menu.exec_(self.mapToGlobal(event.pos()))
+
+        if action is None: return
+        elif action == action2:
+            self.open_tool()
+
+        elif not self.is_small and action == action3:
+            self.openSettings()
+
+        elif not self.is_small and action == action4:
+            self.addNewButton()
+
+        elif not self.is_small and action == actione:
+            self.floating_textbox.hide(animation=False)
+            if QMessageBox.question(self, 'PyAutoMate', 
+                                    'Are you sure you want to exit?') == QMessageBox.Yes:
+                QApplication.quit()
+
+        elif not self.is_small and action == action6:
+            self.assistant_text_enabled = not self.assistant_text_enabled
+
+    def show(self):     # Safety lock so nothing bad happens while tool is hidden
+        super().show()
+        self.restricted = False
+
+    def hide(self):
+        self.restricted = True
+        super().hide()
+
+    """ App geometry functions that are not to be touched for now """
 
     def open_tool(self, event=None, animate: bool=True):
         if self.is_small:
@@ -178,6 +231,18 @@ class MainTool(QMainWindow):
             self.place_button(self.logo_button, 0, 0)
 
         self.is_small = not self.is_small
+
+    def place_logo_and_title(self):
+        # Properly places the logo and title
+        x = (((self.app_size * self.app_grid + 
+            ((self.app_size // 5) * self.app_grid)) // 2) - 
+            (self.app_title_label.width() // 2) + (self.app_size // 3))
+        y = self.logo_button.pos().y() + self.app_size // 5
+        self.logo_button.setGeometry(x, y - self.app_size // 5, 
+                                     self.logo_button.width(), 
+                                     self.logo_button.height())
+        self.app_title_label.setGeometry(x + self.logo_button.width(), y, 
+                                         self.font_size * 6, int(self.font_size * 1.5))
 
     def animate_transformation(self, target_geometry):
         """ defines an animation for maximizing/minimizing the tool """
@@ -294,66 +359,3 @@ class MainTool(QMainWindow):
         else:
             self.occupancies[i][j] = True
             self.place_button(button, row=i, col=j)
-
-    def paintEvent(self, event=None):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        # Create rounded rectangle using QPainter
-        painter.setBrush(self.background_color)
-        painter.setPen(Qt.NoPen)  # Remove the border
-        painter.drawRoundedRect(self.rect(), self.app_size // 5, self.app_size // 5)
-        painter.end()
-
-    def contextMenuEvent(self, event):
-        """ Shows a general context menu for the app """
-        # initialize the main tool menu
-        menu = QMenu(self)
-        action2 = menu.addAction('Open Tool' if self.is_small else 'Minimize Tool')
-
-        if not self.is_small:
-            menu.addSeparator()
-            new_sub_menu = menu.addMenu('New')
-
-            action4 = new_sub_menu.addAction(add_spaces_for_context_menu('Script', ''))
-            assistant_sub_menu = menu.addMenu('Assistant')
-
-            action6 = assistant_sub_menu.addAction(add_spaces_for_context_menu(("✔️" if self.assistant_text_enabled else "❌") + " Text", ''))
-
-            action3 = menu.addAction(add_spaces_for_context_menu("Settings", ''))
-            menu.addSeparator()
-
-            actione = menu.addAction(add_spaces_for_context_menu("Exit", ''))
-            context_menu_stylesheet(new_sub_menu, self)
-            context_menu_stylesheet(assistant_sub_menu, self)
-
-        context_menu_stylesheet(menu, self)
-
-        action = menu.exec_(self.mapToGlobal(event.pos()))
-
-        if action is None: return
-        elif action == action2:
-            self.open_tool()
-
-        elif not self.is_small and action == action3:
-            self.openSettings()
-
-        elif not self.is_small and action == action4:
-            self.add_new_button()
-
-        elif not self.is_small and action == actione:
-            self.floating_textbox.hide(animation=False)
-            if QMessageBox.question(self, 'PyAutoMate', 
-                                    'Are you sure you want to exit?') == QMessageBox.Yes:
-                QApplication.quit()
-
-        elif not self.is_small and action == action6:
-            self.assistant_text_enabled = not self.assistant_text_enabled
-
-    def show(self):
-        super().show()
-        self.restricted = False
-
-    def hide(self):
-        self.restricted = True
-        super().hide()
-# end of MainTool class
