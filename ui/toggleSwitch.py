@@ -11,6 +11,8 @@ class ToggleSwitch(QPushButton):
             initial_state (bool: False): the initial state of the button.
         """
         super().__init__(mainTool)
+        self.mainTool = mainTool
+        
         self.setCheckable(True)  # Ensures button can be toggled
         self.setFixedSize(int(self.mainTool.app_size * 1.25), int(self.mainTool.app_size * 0.5))
         self.setChecked(initial_state)  # Set initial state
