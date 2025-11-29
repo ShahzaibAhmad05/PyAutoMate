@@ -13,9 +13,15 @@ from PyQt5.QtCore import Qt, QTimer, QEventLoop
 from PyQt5.QtGui import QPixmap
 import json
 
-
-def sleep_for(x):
-    time.sleep(x)
+def sleep_for(sleep_time: int) -> None:
+    """ 
+    Calls a sleep event without blocking the app's loop.
+    Args:
+        sleep_time (int): requires time given in ms.
+    """
+    loop = QEventLoop()
+    QTimer.singleShot(sleep_time, loop.quit)    # assuming sleep_time is in ms
+    loop.exec_()
 
 class GlobalTextBox(QLineEdit):
     def __init__(self, main_tool):

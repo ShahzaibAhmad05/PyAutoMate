@@ -54,9 +54,9 @@ class MainTool(QMainWindow):
             if self.app_theme == 'light' else QColor(30, 30, 30))
 
         # initialize the user interface
-        self.initUI()
         enable_dragging(self)
-        enable_dragging(self.logo_button)
+        self.initUI()
+
         # Assistant control variables
         self.assistant_text_enabled = True
         self.floating_textbox = GlobalTextBox(self)
@@ -69,6 +69,10 @@ class MainTool(QMainWindow):
         self.logo_button.setIcon(QIcon(get_logo_path()))
         self.logo_button.setStyleSheet("QPushButton { border: none; }")
         self.logo_button.mouseDoubleClickEvent = self.open_tool
+        
+        # to enable dragging using the logo
+        self.logo_button.mousePressEvent = self.mousePressEvent
+        self.logo_button.mouseMoveEvent = self.mouseMoveEvent
         self.place_button(self.logo_button, 0, 0)
 
         # setup app title
