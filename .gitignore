@@ -10,9 +10,11 @@ __pycache__/
 # debugging purpose/heavy files
 images/
 assistant_files.json
+*.zip
 
 # temporary files
 temp.*
+*.temp
 
 # vscode files
 .vscode/
