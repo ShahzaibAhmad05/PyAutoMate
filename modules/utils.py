@@ -87,13 +87,23 @@ def generateRandomID() -> int:
         if (not os.path.exists(get_icon_path(id)) and
             not os.path.exists(get_script_path(id))):
             return id
-        
-def sleep_for(sleep_time: int) -> None:
-    """ 
-    Calls a sleep event without blocking the app's loop.
-    Args:
-        sleep_time (int): requires time given in ms.
+
+def add_spaces_for_context_menu(text: str, shortcut_key: str, space_rule: int=22) -> str:
     """
-    loop = QEventLoop()
-    QTimer.singleShot(sleep_time, loop.quit)    # assuming sleep_time is in ms
-    loop.exec_()
+    Adds the required spaces to the text of a context menu option.
+
+    Args:
+        text (str): The text which the button is going to hold.
+        shortcut_key (str): The shortcut key of the button in the app.
+        space_rule (int): Defines the width of the option.
+    Returns:
+        str: The text to add to the context menu option.
+    """
+    space_rule = 22
+    for _ in range(space_rule - len(text)):
+        text += ' '
+    for _ in range(space_rule // 4 - len(shortcut_key)):
+        text += ' '
+    text += shortcut_key
+    return text
+

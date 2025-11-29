@@ -9,7 +9,7 @@ import logging
 import os
 import inspect
 import pickle
-from modules.functions import sleep_for
+from modules.sysUtils import sleep_for
 from Assistant import GlobalTextBox
 import threading
 import json
@@ -35,7 +35,7 @@ from PyQt5.QtWidgets import (QPushButton,
 from PyQt5.QtCore import QPoint, QRect, QSize, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QIcon, QTextCharFormat, QSyntaxHighlighter, QColor, QPainter, QCursor, QFont
 from modules.styling import dialog_window_stylesheet
-from modules.functions import enable_dragging
+from modules.utils import enable_dragging
 from ui.toggleSwitch import ToggleSwitch
 
 class ScriptingDialog(QDialog):
