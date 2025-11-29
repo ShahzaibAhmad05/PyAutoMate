@@ -101,10 +101,6 @@ Example:
 - **opencv-python**: Computer vision
 - **numpy**: Numerical computing
 
-## License
-
-[Specify your license here]
-
 ## Author
 
 Shahzaib Ahmad
