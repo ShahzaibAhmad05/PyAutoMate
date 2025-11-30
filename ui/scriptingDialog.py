@@ -35,7 +35,7 @@ from PyQt5.QtWidgets import (QPushButton,
 from PyQt5.QtCore import QPoint, QRect, QSize, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QIcon, QTextCharFormat, QSyntaxHighlighter, QColor, QPainter, QCursor, QFont
 from modules.styling import dialog_window_stylesheet
-from modules.utils import enable_dragging
+from modules.utils import enableDragging
 from ui.toggleSwitch import ToggleSwitch
 
 class ScriptingDialog(QDialog):

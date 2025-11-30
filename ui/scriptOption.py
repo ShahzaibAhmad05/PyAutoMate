@@ -1,49 +1,25 @@
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QHBoxLayout
-from PyQt5.QtCore import Qt, QTimer, QEventLoop
-from PyQt5.QtGui import QPixmap
-import logging
-import os
-import inspect
-import pickle
-from modules.sysUtils import sleep_for
-from Assistant import GlobalTextBox
-import threading
-import json
-import time
-import sys
-import shutil
-import pyautogui
-import keyboard
-import mouse
+# PyQt5 imports
+from PyQt5.QtWidgets import QPushButton, QDialog, QVBoxLayout, QRadioButton, QButtonGroup, QLabel, QWidget, QLineEdit
+from PyQt5.QtCore import Qt
+
+# python libraries
 from typing import Callable
-import pyperclip
-from io import BytesIO
-import random
-from PIL import Image
-import webbrowser
-import psutil
-from pygetwindow import getActiveWindow, getWindowsWithTitle
-from PyQt5.QtWidgets import (QPushButton,
-                            QDialog, QMessageBox, QVBoxLayout,
-                            QTextEdit, QFileDialog, QRadioButton,
-                            QButtonGroup, QMenu, QInputDialog, QLineEdit,
-                            QCheckBox, QSpinBox)
-from PyQt5.QtCore import QPoint, QRect, QSize, QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QIcon, QTextCharFormat, QSyntaxHighlighter, QColor, QPainter, QCursor, QFont
+
+# self-defined modules
 from modules.styling import dialog_window_stylesheet
-from modules.utils import enable_dragging
-from ui.toggleSwitch import ToggleSwitch
+from modules.utils import enableDragging
+
 
 class ScriptOption(QDialog):
-    def __init__(self, parent, ok_button_name: str, functions: dict[str, Callable]=None, 
+    def __init__(self, mainTool, ok_button_name: str, functions: dict[str, Callable]=None, 
                  radios: list[str]=None, inputs: list[str]=None):
         super().__init__()
 
-        self.parent = parent
+        self.mainTool = mainTool
         self.setWindowTitle('Select An Option')
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.SplashScreen)
-        self.setFixedWidth(self.parent.app_size * 7)
-        title_bar_widget = dialog_window_stylesheet(self, parent)
+        self.setFixedWidth(self.mainTool.app_size * 7)
+        title_bar_widget = dialog_window_stylesheet(self, self.mainTool)
         main_widget = QWidget(self)
         main_layout = QVBoxLayout(self)
         main_widget.setLayout(main_layout)
@@ -86,7 +62,7 @@ class ScriptOption(QDialog):
         overall_layout.addWidget(title_bar_widget)
         overall_layout.addWidget(main_widget)
         self.setLayout(overall_layout)
-        enable_dragging(self)
+        enableDragging(self)
 
     def get_selected_option(self: QWidget) -> str:
         """ Returns the text of the selected radio button """

@@ -1,51 +1,27 @@
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QHBoxLayout
-from PyQt5.QtCore import Qt, QTimer, QEventLoop
-from PyQt5.QtGui import QPixmap
-import logging
-import os
-import inspect
-import pickle
+# PyQt5 imports
+from PyQt5.QtWidgets import QPushButton, QMessageBox, QFileDialog, QMenu, QDialog
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon
+
+# python libraries
+import os, shutil, mouse
+
+# self-defined modules
 from modules.sysUtils import sleep_for
-from Assistant import GlobalTextBox
-import threading
-import json
-import time
-import sys
-import shutil
-import pyautogui
-import keyboard
-import mouse
-from typing import Callable
-import pyperclip
-from io import BytesIO
-import random
-from PIL import Image
-import webbrowser
-import psutil
-from pygetwindow import getActiveWindow, getWindowsWithTitle
-from PyQt5.QtWidgets import (QPushButton,
-                            QDialog, QMessageBox, QVBoxLayout,
-                            QTextEdit, QFileDialog, QRadioButton,
-                            QButtonGroup, QMenu, QInputDialog, QLineEdit,
-                            QCheckBox, QSpinBox)
-from PyQt5.QtCore import QPoint, QRect, QSize, QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QIcon, QTextCharFormat, QSyntaxHighlighter, QColor, QPainter, QCursor, QFont
-from modules.styling import dialog_window_stylesheet, context_menu_stylesheet, push_button_stylesheet, push_button_disabled_stylesheet
-from modules.utils import enable_dragging, add_spaces_for_context_menu, generateRandomID, save_script, delete_script, load_script
-from ui.toggleSwitch import ToggleSwitch
-from ui.customTextEdit import CustomTextEdit
-from ui.scriptOption import ScriptOption
+from modules.styling import context_menu_stylesheet
+from modules.utils import add_spaces_for_context_menu, delete_script, load_script, save_script
 from modules.getters import get_icon_path
-from ui.addButtonWindow import AddButtonWindow
 from modules.interpreter import interpret
 
-""" DraggableButton class """
+# UI elements
+from ui.scriptEditorWindow import ScriptEditorWindow
+
 
 class DraggableButton(QPushButton):
-    def __init__(self, parent, scriptID):
-        super().__init__(parent)
+    def __init__(self, mainTool, scriptID):
+        super().__init__(mainTool)
 
-        self.parent = parent
+        self.mainTool = mainTool
         self.scriptID = scriptID
         self.dragging = False
         self.position = (0, 0)
@@ -55,44 +31,44 @@ class DraggableButton(QPushButton):
 
         # additional setup
         self.setObjectName("QPushButton")
-        self.parent = parent
 
-    def edit_script(self) -> None:
+    def editScript(self) -> None:
         """ allows the user to edit the script """
-        add_button_window = AddButtonWindow(parent=self.parent, commands_list=self.code, 
-                                      completion_signal=self.completion_signal,
-                            existing_image=get_icon_path(self.iconID))
-        self.parent.hide()
+        scriptEditorWindoa = ScriptEditorWindow(mainTool=self.mainTool, code=self.code, 
+                            existing_image=get_icon_path(self.iconID), 
+                            completionSignal=self.completionSignal)
+        self.mainTool.hide()
 
-        if add_button_window.exec_() == QDialog.Accepted:
+        if scriptEditorWindoa.exec_() == QDialog.Accepted:
 
             # update the attributes of the current button
-            self.iconID, self.code, self.completion_signal = add_button_window.get_input()
+            self.iconID, self.code, self.completionSignal = scriptEditorWindoa.get_input()
             # save the updated script
-            save_script(self.id, self.code, self.iconID, self.completion_signal)
+            save_script(scriptID=self.scriptID, iconID=self.iconID, 
+                        code=self.code, completionSignal=self.completionSignal)
             self.refresh()
 
-        self.parent.show()
+        self.mainTool.show()
 
     def deleteButton(self):
         if QMessageBox.question(self, 'PyAutoMate', 'Are you sure you want to delete this button?') == QMessageBox.Yes:
             delete_script(self.scriptID, self.iconID)
-            i, j = self.parent().get_row_col_by_pos(self.position)
-            self.parent().occupancies[i][j] = False
+            i, j = self.mainTool.get_row_col_by_pos(self.position)
+            self.mainTool.occupancies[i][j] = False
             self.hide()
         else:
             # place the button back
-            self.parent().check_snap(self, self.position)
+            self.mainTool.check_snap(self, self.position)
 
     def run_script(self):
-        interpret(self.parent, commands=self.code, comp_signal=self.completion_signal)
+        interpret(self.mainTool, commands=self.code, completionSignal=self.completionSignal)
 
     def refresh(self):
         """ refreshes the button's attributes from the saved script data """
         script_data = load_script(self.scriptID)        # load the script data
         self.code = script_data['code']
         self.iconID = script_data['iconID']
-        self.completion_signal = script_data['completionSignal']
+        self.completionSignal = script_data['completionSignal']
 
         self.updateIcon()
 
@@ -103,7 +79,7 @@ class DraggableButton(QPushButton):
         self.run_script()
 
     def mousePressEvent(self, event):
-        if self.parent().is_small and event.button() == Qt.LeftButton:
+        if self.mainTool.is_small and event.button() == Qt.LeftButton:
             # wait for the mouse button to be released
             while mouse.is_pressed('left'): sleep_for(25)
             self.run_script()
@@ -120,10 +96,10 @@ class DraggableButton(QPushButton):
         if self.dragging:
             self.dragging = False
             # Check if the button should snap
-            self.parent().check_snap(self, self.position)
+            self.mainTool.check_snap(self, self.position)
 
     def contextMenuEvent(self, event):
-        if self.parent().is_small: return
+        if self.mainTool.is_small: return
         # initialize context menu
         menu = QMenu(self)
 
@@ -132,7 +108,7 @@ class DraggableButton(QPushButton):
         menu.addSeparator()
         action2 = menu.addAction(add_spaces_for_context_menu("Edit Script", ''))
         action3 = menu.addAction(add_spaces_for_context_menu(
-            "Add Icon" if self.icon_to_set is None else 'Edit Icon'))
+            "Add Icon" if self.iconID is None else 'Edit Icon', shortcut_key=''))
         action5 = None
         if self.iconID is not None:
             text_to_add = add_spaces_for_context_menu("Remove Icon", '')
@@ -140,14 +116,14 @@ class DraggableButton(QPushButton):
         menu.addSeparator()
         action6 = menu.addAction("Delete")
 
-        context_menu_stylesheet(menu, self.parent)       # set stylesheet for context menu
+        context_menu_stylesheet(menu, self.mainTool)       # set stylesheet for context menu
         action = menu.exec_(self.mapToGlobal(event.pos()))  # run context menu
    
         if action == action1:
             self.run_script()
 
         elif action == action2:
-            self.edit_script()
+            self.editScript()
             
         elif action == action3:
             image_path, _ = QFileDialog.getOpenFileName(
@@ -155,20 +131,20 @@ class DraggableButton(QPushButton):
                                 caption="Select An Image",
                                 filter="Image Files (*.png *.jpg *.jpeg *.bmp *.gif *.webp *.tiff *.svg);;All Files (*)",
                                 options=QFileDialog.Options())
+            
             if not os.path.exists(image_path): return       # make sure we have a valid path
             # remove the old image
-            if os.path.exists(get_icon_path(self.iconID)): 
+            if self.iconID is not None and os.path.exists(get_icon_path(self.iconID)): 
                 os.remove(get_icon_path(self.iconID))
 
             # save the icon in the script
             shutil.copy(image_path, get_icon_path(self.scriptID))
-            save_script(self.scriptID, self.code, self.scriptID, 
-                        self.completion_signal)
+            save_script(self.scriptID, self.iconID, self.code, self.completionSignal)
             self.refresh()      # refresh to apply changes
 
         elif action5 and action == action5:
             # remove the icon from script file
-            save_script(self.scriptID, self.code, None, self.completion_signal)
+            save_script(self.scriptID, self.code, None, self.completionSignal)
             self.refresh()
             
         elif action == action6:
