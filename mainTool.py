@@ -8,13 +8,13 @@ import os, sys, shutil, pyautogui
 
 # self-defined modules
 from modules.getters import get_settings, get_logo_path
-from modules.utils import save_script, enable_dragging, generateRandomID, add_spaces_for_context_menu
+from modules.utils import save_script, enableDragging, generateRandomID, add_spaces_for_context_menu
 from modules.sysUtils import sleep_for
 from Assistant import GlobalTextBox
 
 # UI elements
 from ui.settings import Settings
-from ui.addButtonWindow import AddButtonWindow
+from ui.scriptEditorWindow import ScriptEditorWindow
 from ui.draggableButton import DraggableButton
 
 # CSS Styling functions
@@ -54,7 +54,7 @@ class MainTool(QMainWindow):
             if self.app_theme == 'light' else QColor(30, 30, 30))
 
         # initialize the user interface
-        enable_dragging(self)
+        enableDragging(self)
         self.initUI()
 
         # Assistant control variables
@@ -114,8 +114,8 @@ class MainTool(QMainWindow):
         self.show()
 
     def addNewButton(self):
-        """ creates an instance of AddButtonWindow() which is a QDialog """
-        scriptEditor = AddButtonWindow(self, commands_list=None,
+        """ creates an instance of ScriptEditorWindow() which is a QDialog """
+        scriptEditor = ScriptEditorWindow(self, code=None,
                                             existing_image=None, completionSignal=False)
         scriptEditor.show()
         self.hide()     # hide main tool only after editor is shown
