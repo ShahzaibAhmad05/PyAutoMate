@@ -1,14 +1,8 @@
-import pickle
-from PyQt5.QtGui import QIcon, QPixmap
-import os
-from development._dev_variables import data_file, app_version
-import platform
-import psutil
 import json
 
 """
 The structure of script.bin is as follows:
-[[id, image_data, script_code, completion_signal]]
+[[id, image_data, script_code, completionSignal]]
 
 """
 
