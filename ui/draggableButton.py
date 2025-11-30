@@ -9,7 +9,7 @@ import os, shutil, mouse
 # self-defined modules
 from modules.sysUtils import sleep_for
 from modules.styling import context_menu_stylesheet
-from modules.utils import add_spaces_for_context_menu, delete_script, load_script, save_script
+from modules.utils import add_spaces_for_context_menu, delete_script, load_script, save_script, generateRandomID
 from modules.getters import get_icon_path
 from modules.interpreter import interpret
 
@@ -31,6 +31,7 @@ class DraggableButton(QPushButton):
 
         # additional setup
         self.setObjectName("QPushButton")
+        self.mouseDoubleClickEvent = self.run_script
 
     def editScript(self) -> None:
         """ allows the user to edit the script """
@@ -69,14 +70,8 @@ class DraggableButton(QPushButton):
         self.code = script_data['code']
         self.iconID = script_data['iconID']
         self.completionSignal = script_data['completionSignal']
-
-        self.updateIcon()
-
-    def updateIcon(self):
+        # update the button icon as well
         self.setIcon(QIcon(get_icon_path(self.iconID)))
-
-    def mouseDoubleClickEvent(self, event: None) -> None:
-        self.run_script()
 
     def mousePressEvent(self, event):
         if self.mainTool.is_small and event.button() == Qt.LeftButton:
@@ -138,7 +133,8 @@ class DraggableButton(QPushButton):
                 os.remove(get_icon_path(self.iconID))
 
             # save the icon in the script
-            shutil.copy(image_path, get_icon_path(self.scriptID))
+            self.iconID = generateRandomID()
+            shutil.copy(image_path, get_icon_path(self.iconID))
             save_script(self.scriptID, self.iconID, self.code, self.completionSignal)
             self.refresh()      # refresh to apply changes
 

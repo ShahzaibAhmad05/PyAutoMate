@@ -1,5 +1,5 @@
 {
-    "theme": "light",
-    "size": "45",
-    "grid": "5"
+    "theme": "dark",
+    "size": 45,
+    "grid": 5
 }
