@@ -110,7 +110,6 @@ class MainTool(QMainWindow):
             else: 
                 # reaches here only if settings are opened in development environment
                 sleep_for(1000)
-                self.decoy_window.hide()
         self.show()
 
     def addNewButton(self):
