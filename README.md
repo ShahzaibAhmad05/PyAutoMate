@@ -59,9 +59,9 @@ PyAutoMate/
 │   └── styling.py        # UI styling
 ├── ui/                    # User interface components
 │   ├── scriptingDialog.py # Script creation dialog
-│   ├── addButtonWindow.py # Button creation window
+│   ├── ScriptEditorWindow.py # Button creation window
 │   ├── draggableButton.py # Custom draggable button
-│   ├── customTextEdit.py  # Custom text editor
+│   ├── scriptingTextEdit.py  # Custom text editor
 │   ├── scriptOption.py    # Script options
 │   ├── settings.py        # Settings dialog
 │   └── toggleSwitch.py    # Toggle UI component
