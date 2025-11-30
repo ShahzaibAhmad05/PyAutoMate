@@ -9,6 +9,7 @@ __pycache__/
 
 # debugging purpose/heavy files
 images/
+scripts/
 assistant_files.json
 *.zip
 
