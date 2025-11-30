@@ -132,7 +132,7 @@ def interpret(parent, commands: list[list], completionSignal: bool=False) -> Non
 
         elif command[0] == 'cmd':
             cmd = command[1:]
-            subprocess.run(cmd)
+            subprocess.run(cmd, shell=True)
 
     # optionally provide a completion signal
     if completionSignal:

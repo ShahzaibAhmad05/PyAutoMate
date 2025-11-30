@@ -186,7 +186,9 @@ class ScriptEditorWindow(QDialog):
     def selectKey(self):
         """ Waits till a key is selected for the button """
         push_button_disabled_stylesheet(self.selectKeyButton, self.mainTool)
-        self.key = keyboard.read_hotkey(suppress=False)      # prevent Windows intervention
+        try:
+            self.key = keyboard.read_hotkey(suppress=False)      # prevent Windows intervention
+        except Exception: pass
         self.selectKeyLabel.setText(f"Selected: {self.key}")
         push_button_stylesheet(self.selectKeyButton, self.mainTool)
         

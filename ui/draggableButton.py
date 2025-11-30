@@ -99,7 +99,7 @@ class DraggableButton(QPushButton):
         # update behaviour
         self.setIcon(QIcon(get_icon_path(self.iconID)))
         if self.key is not None:
-            self.keyRef = keyboard.add_hotkey(self.key, self.run_script)
+            self.keyRef = keyboard.add_hotkey(self.key, self.run_script, suppress=True)
 
     def mousePressEvent(self, event):
         if self.mainTool.is_small and event.button() == Qt.LeftButton:
@@ -168,7 +168,7 @@ class DraggableButton(QPushButton):
 
     """ Functions that are not to be touched for now """
 
-    def run_script(self):
+    def run_script(self, event=None):
         interpret(self.mainTool, commands=self.code, completionSignal=self.completionSignal)
 
     def mouseMoveEvent(self, event):
