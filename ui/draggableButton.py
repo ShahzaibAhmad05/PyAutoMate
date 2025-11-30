@@ -40,8 +40,10 @@ class DraggableButton(QPushButton):
 
     def editScript(self) -> None:
         """ allows the user to edit the script """
-        scriptEditorWindow = ScriptEditorWindow(mainTool=self.mainTool, code=self.code, 
+        scriptEditorWindow = ScriptEditorWindow(
+                            mainTool=self.mainTool, code=self.code, 
                             existing_image=get_icon_path(self.iconID), 
+                            currentKey=self.key,
                             completionSignal=self.completionSignal)
         self.mainTool.hide()
 
@@ -49,6 +51,11 @@ class DraggableButton(QPushButton):
 
             # update the attributes of the current button
             self.iconID, self.code, self.completionSignal = scriptEditorWindow.get_input()
+            self.iconID = scriptEditorWindow.getIconID()
+            self.code = scriptEditorWindow.getCode()
+            self.completionSignal = scriptEditorWindow.getCompletionSignal()
+            self.key = scriptEditorWindow.getKey()
+
             # save the updated script
             save_script(scriptID=self.scriptID, iconID=self.iconID, key=self.key, 
                         code=self.code, completionSignal=self.completionSignal)
@@ -78,7 +85,8 @@ class DraggableButton(QPushButton):
         self.completionSignal = script_data['completionSignal']
         # update behaviour
         self.setIcon(QIcon(get_icon_path(self.iconID)))
-        self.keyRef = keyboard.add_hotkey(self.key, self.run_script)
+        if self.key is not None:
+            self.keyRef = keyboard.add_hotkey(self.key, self.run_script)
 
     def mousePressEvent(self, event):
         if self.mainTool.is_small and event.button() == Qt.LeftButton:
@@ -96,7 +104,9 @@ class DraggableButton(QPushButton):
         menu = QMenu(self)
 
         # create options in the menu
-        action1 = menu.addAction(add_spaces_for_context_menu("Run Script", self.key))
+        action1 = menu.addAction(add_spaces_for_context_menu(
+                        "Run Script", 
+                        self.key if self.key is not None else ''))
         menu.addSeparator()
         action2 = menu.addAction(add_spaces_for_context_menu("Edit Script", ''))
         action3 = menu.addAction(add_spaces_for_context_menu(

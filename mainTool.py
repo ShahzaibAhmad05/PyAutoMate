@@ -114,7 +114,7 @@ class MainTool(QMainWindow):
 
     def addNewButton(self):
         """ creates an instance of ScriptEditorWindow() which is a QDialog """
-        scriptEditor = ScriptEditorWindow(self, code=None,
+        scriptEditor = ScriptEditorWindow(self, code=None, currentKey=None,
                                             existing_image=None, completionSignal=False)
         scriptEditor.show()
         self.hide()     # hide main tool only after editor is shown

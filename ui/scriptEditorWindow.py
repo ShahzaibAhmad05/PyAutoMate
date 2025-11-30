@@ -21,7 +21,8 @@ from ui.scriptOption import ScriptOption
 
 
 class ScriptEditorWindow(QDialog):
-    def __init__(self, mainTool, code: list[list], existing_image: str, completionSignal):
+    def __init__(self, mainTool, code: list[list], existing_image: str, 
+                 currentKey: str, completionSignal):
         super().__init__(mainTool)
 
         self.mainTool = mainTool
@@ -29,6 +30,7 @@ class ScriptEditorWindow(QDialog):
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.SplashScreen)
         self.setFixedWidth(int(pyautogui.size()[0] * 0.75))
         self.code = []
+        self.key = currentKey        # shortcut key for the button
         title_bar_widget = dialog_window_stylesheet(self, self.mainTool)
 
         # Layout for the second window
@@ -83,6 +85,16 @@ class ScriptEditorWindow(QDialog):
                 self.input_field.append(command)
         main_layout.addWidget(self.input_field)
 
+        # adding shortcut key for the button
+        self.selectKeyButton = QPushButton("Select Key", self)
+        self.selectKeyButton.clicked.connect(self.selectKey)
+        main_layout.addWidget(self.selectKeyButton)
+        self.selectKeyButton.setObjectName("QPushButton")
+        # label to show the selected key
+        self.selectKeyLabel = QLabel('', self)
+        main_layout.addWidget(self.selectKeyLabel)
+
+        # adding icon for the button
         self.select_icon_button = QPushButton("Select Icon", self)
         self.select_icon_button.clicked.connect(self.select_icon)
         main_layout.addWidget(self.select_icon_button)
@@ -91,18 +103,40 @@ class ScriptEditorWindow(QDialog):
         # label to show the selected icon's path
         if existing_image is None:
             self.file_path = ''
-            self.icon_label = QLabel("Icon: Not Selected", self)
+            self.icon_label = QLabel("Not Selected", self)
         else:
             self.file_path = existing_image
-            self.icon_label = QLabel(f"Icon: Selected")
+            self.icon_label = QLabel(f"Selected")
         main_layout.addWidget(self.icon_label)
         self.button.setObjectName("QPushButton")
 
+        # checkbox to indicate if the button has a key or not
+        self.selectKeyCheckbox = QCheckBox('Include Key', self)
+        self.selectKeyCheckbox.setStyleSheet(" margin-top: 15px;")
+        main_layout.addWidget(self.selectKeyCheckbox)
+
+        # checkbox to decide whether to include icon or not
         self.includes_icon = QCheckBox('Include Icon', self)
         self.includes_icon.setChecked(True if self.file_path else False)
-        self.set_icon_or_not()
-        self.includes_icon.setStyleSheet(" margin-top: 15px;")
-        self.includes_icon.toggled.connect(self.set_icon_or_not)
+        
+        # call to connect the four attr: btn, label, checkbox, key
+        self.setButtonLabelGrp(self.selectKeyCheckbox, self.selectKeyButton,
+                               self.selectKeyLabel, self.key)
+        self.selectKeyCheckbox.toggled.connect(
+            lambda _, checkbox=self.selectKeyCheckbox, attAttr=self.key, 
+            attButton=self.selectKeyButton, attLabel=self.selectKeyLabel: 
+            self.setButtonLabelGrp(checkbox, attButton, attLabel, attAttr)
+        )
+
+        # call once to connect the four
+        self.setButtonLabelGrp(self.includes_icon, self.select_icon_button,
+                               self.icon_label, self.file_path)
+        self.includes_icon.toggled.connect(
+            lambda checked, checkbox=self.includes_icon, attAttr=self.file_path, 
+            attButton=self.select_icon_button, attLabel=self.icon_label: 
+            self.setButtonLabelGrp(checkbox, attButton, attLabel, attAttr)
+        )
+
         main_layout.addWidget(self.includes_icon)
         self.completion_check = QCheckBox('Include Completion Signal', self)
         self.completion_check.setChecked(completionSignal)
@@ -147,16 +181,35 @@ class ScriptEditorWindow(QDialog):
         # center the window on the screen
         self.adjustSize()
         self.move(pyautogui.size()[0] // 2 - self.width() // 2, pyautogui.size()[1] // 2 - self.height() // 2)
+
+    def selectKey(self):
+        """ Waits till a key is selected for the button """
+        push_button_disabled_stylesheet(self.selectKeyButton, self.mainTool)
+        self.key = keyboard.read_hotkey(suppress=False)      # prevent Windows intervention
+        self.selectKeyLabel.setText(f"Selected: {self.key}")
+        push_button_stylesheet(self.selectKeyButton, self.mainTool)
         
-    def set_icon_or_not(self):
-        if self.includes_icon.isChecked():
-            self.select_icon_button.setEnabled(True)
-            push_button_stylesheet(self.select_icon_button, self.mainTool)
-            self.icon_label.setText(f'Icon: Selected' if self.file_path else 'Icon: Not Selected')
+    def setButtonLabelGrp(self, checkbox: QCheckBox, attButton: QPushButton, 
+                        attLabel: QLabel, attAttr) -> None:
+        """ 
+        Generic function attached to checkboxes and labels to enable, disable buttons, 
+        and change text.
+            
+        Args:
+            checkbox: a reference to the checkbox which is being toggled.
+            attButton: reference to the attached button to enable/disable.
+            attLabel: reference to the attached label to change.
+            attAttr: reference to the attribute to check for the label's value
+        """
+
+        if checkbox.isChecked():
+            attButton.setEnabled(True)
+            push_button_stylesheet(attButton, self.mainTool)
+            attLabel.setText(f'Selected: {attAttr}' if attAttr else 'Not Selected')
         else:
-            self.select_icon_button.setEnabled(False)
-            push_button_disabled_stylesheet(self.select_icon_button, self.mainTool)
-            self.icon_label.setText('Icon: Disabled')
+            attButton.setEnabled(False)
+            push_button_disabled_stylesheet(attButton, self.mainTool)
+            attLabel.setText('Disabled')
 
     def action_recorder(self):
         """ the best of all script writer buttons, records clicks, double clicks automatically, with time intervals too """
@@ -366,9 +419,18 @@ class ScriptEditorWindow(QDialog):
                 self.code = []
 
     """ helpers for the on_ok function """
-
-    def get_input(self):
-        """ Returns the input text """
-        if not self.includes_icon.isChecked():
-            self.file_path = None
-        return [self.file_path, self.code, self.completion_check.isChecked()]
+    
+    def getIconID(self):
+        """ Returns the iconID """
+        if not self.includes_icon.isChecked(): return None
+        return self.file_path
+    
+    def getCode(self):
+        return self.code
+    
+    def getCompletionSignal(self):
+        return self.completion_check.isChecked()
+    
+    def getKey(self):
+        if not self.selectKeyCheckbox.isChecked(): return None
+        return self.key

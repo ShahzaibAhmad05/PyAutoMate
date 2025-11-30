@@ -7,11 +7,12 @@ import json, os, pyautogui, random
 # self-defined functions
 from modules.getters import get_script_path, get_icon_path
 
-def save_script(scriptID: int | str, iconID: int | str, code: list, completionSignal: bool) -> None:
+def save_script(scriptID: int | str, iconID: int | str, key: str, code: list, completionSignal: bool) -> None:
     """ saves a script to its corresponding JSON file """
     script_data = {
         "scriptID": scriptID,
         "iconID": iconID,
+        "key": key,
         "code": code,
         "completionSignal": completionSignal
     }
