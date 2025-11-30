@@ -1,48 +1,22 @@
-import json
-import os
-from .getters import get_script_path, get_icon_path
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QHBoxLayout
-from PyQt5.QtCore import Qt, QTimer, QEventLoop
-from PyQt5.QtGui import QPixmap
-import logging
-import os
-import inspect
-import pickle
-from Assistant import GlobalTextBox
-import threading
-import json
-import time
-import sys
-import shutil
-import pyautogui
-import keyboard
-import mouse
-from typing import Callable
-import pyperclip
-from io import BytesIO
-import random
-from PIL import Image
-import webbrowser
-import psutil
-from pygetwindow import getActiveWindow, getWindowsWithTitle
-from PyQt5.QtWidgets import (QPushButton,
-                            QDialog, QMessageBox, QVBoxLayout,
-                            QTextEdit, QFileDialog, QRadioButton,
-                            QButtonGroup, QMenu, QInputDialog, QLineEdit,
-                            QCheckBox, QSpinBox)
-from PyQt5.QtCore import QPoint, QRect, QSize, QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QIcon, QTextCharFormat, QSyntaxHighlighter, QColor, QPainter, QCursor, QFont
+# PyQt5 imports
+from PyQt5.QtCore import Qt, QPoint
 
-def save_script(scriptID: int | str, iconID: int | str, code: list, completion_signal: bool) -> None:
+# python libraries
+import json, os, pyautogui, random
+
+# self-defined functions
+from modules.getters import get_script_path, get_icon_path
+
+def save_script(scriptID: int | str, iconID: int | str, code: list, completionSignal: bool) -> None:
     """ saves a script to its corresponding JSON file """
     script_data = {
         "scriptID": scriptID,
         "iconID": iconID,
         "code": code,
-        "completionSignal": completion_signal
+        "completionSignal": completionSignal
     }
     with open(get_script_path(scriptID), 'w') as file:
-        json.dump(script_data, file)
+        json.dump(script_data, file, indent=4)
 
 def delete_script(scriptID: int | str, iconID: int | str) -> None:
     """ removes a script JSON file """
@@ -55,7 +29,7 @@ def load_script(scriptID: int | str) -> dict:
         script_data = json.load(file)
     return script_data
 
-def enable_dragging(widget):
+def enableDragging(widget):
     widget.is_dragging = False
     widget.drag_position = QPoint()
 

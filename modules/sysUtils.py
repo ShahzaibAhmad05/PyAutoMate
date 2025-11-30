@@ -1,43 +1,9 @@
+# PyQt5 imports
+from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtCore import QTimer, QEventLoop
+
+# python libraries
 import psutil, sys, os
-from PyQt5.QtWidgets import (QPushButton,
-                            QDialog, QMessageBox, QVBoxLayout,
-                            QTextEdit, QFileDialog, QRadioButton,
-                            QButtonGroup, QMenu, QInputDialog, QLineEdit,
-                            QCheckBox, QSpinBox)
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QHBoxLayout
-from PyQt5.QtCore import Qt, QTimer, QEventLoop
-from PyQt5.QtGui import QPixmap
-import logging
-import os
-import inspect
-import pickle
-from Assistant import GlobalTextBox
-import threading
-import json
-import time
-import sys
-import shutil
-import pyautogui
-import keyboard
-import mouse
-from typing import Callable
-import pyperclip
-from io import BytesIO
-import random
-from PIL import Image
-import webbrowser
-import psutil
-from pygetwindow import getActiveWindow, getWindowsWithTitle
-from PyQt5.QtWidgets import (QPushButton,
-                            QDialog, QMessageBox, QVBoxLayout,
-                            QTextEdit, QFileDialog, QRadioButton,
-                            QButtonGroup, QMenu, QInputDialog, QLineEdit,
-                            QCheckBox, QSpinBox)
-from PyQt5.QtCore import QPoint, QRect, QSize, QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QIcon, QTextCharFormat, QSyntaxHighlighter, QColor, QPainter, QCursor, QFont
-from modules.styling import dialog_window_stylesheet
-from modules.utils import enable_dragging
-from ui.toggleSwitch import ToggleSwitch
 
 def close_other_instances():
     """ no args, closes all the other instances of the current process """
