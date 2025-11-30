@@ -12,6 +12,8 @@ def get_logo_path() -> str:
 
 def get_icon_path(iconID: int | str) -> str:
     """ returns the path to a given icon """
+    if iconID == None: 
+        return None
     return f'images/{iconID}.png'
 
 def get_script_path(scriptID: int | str) -> str:

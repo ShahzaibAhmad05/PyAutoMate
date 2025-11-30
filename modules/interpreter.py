@@ -1,47 +1,19 @@
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QHBoxLayout
-from PyQt5.QtCore import Qt, QTimer, QEventLoop
-from PyQt5.QtGui import QPixmap
-import logging
-import os
-import inspect
-import pickle
-from modules.sysUtils import sleep_for
-from Assistant import GlobalTextBox
-import threading
-import json
-import time
-import sys
-import shutil
-import pyautogui
-import keyboard
-import mouse
-from typing import Callable
-import pyperclip
+# PyQt5 imports
+from PyQt5.QtWidgets import QMessageBox
+
+# python libraries
+import os, time, pyautogui, keyboard, mouse, webbrowser
 from io import BytesIO
-import random
 from PIL import Image
-import webbrowser
-import psutil
-from pygetwindow import getActiveWindow, getWindowsWithTitle
-from PyQt5.QtWidgets import (QPushButton,
-                            QDialog, QMessageBox, QVBoxLayout,
-                            QTextEdit, QFileDialog, QRadioButton,
-                            QButtonGroup, QMenu, QInputDialog, QLineEdit,
-                            QCheckBox, QSpinBox)
-from PyQt5.QtCore import QPoint, QRect, QSize, QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QIcon, QTextCharFormat, QSyntaxHighlighter, QColor, QPainter, QCursor, QFont
-from modules.styling import dialog_window_stylesheet, context_menu_stylesheet, push_button_stylesheet, push_button_disabled_stylesheet
-from modules.utils import enable_dragging, add_spaces_for_context_menu, generateRandomID, save_script, delete_script, load_script
-from ui.toggleSwitch import ToggleSwitch
-from ui.customTextEdit import CustomTextEdit
-from ui.scriptOption import ScriptOption
-from modules.getters import get_icon_path
-from ui.addButtonWindow import AddButtonWindow
+from pygetwindow import getWindowsWithTitle
+
+# self-defined modules
+from modules.sysUtils import sleep_for
 
 
 """ interpreter function """
 
-def interpret(parent, commands: list[list], comp_signal: bool=False) -> None:
+def interpret(parent, commands: list[list], completionSignal: bool=False) -> None:
     """
     takes in a list of interpreter readable commands with the proper format to execute them.
     Command[0]: the type of the command
@@ -50,12 +22,13 @@ def interpret(parent, commands: list[list], comp_signal: bool=False) -> None:
     param: parent is a widget on which the dialogs would be set
     param: commands is a list of lists, where each list represents a command
     param: variables (dict)
-    param: comp_signal if true, provides a signal on completion of the script, false by default
+    param: completionSignal if true, provides a signal on completion of the script, false by default
     param: dialogs_parent (ptr) points to the window hosting the dialogs, i.e. small tool
 
     """
     parent.hide()
     sleep_for(100)
+    if commands == None: return     # safety check
 
     for command in commands:
 
@@ -66,9 +39,9 @@ def interpret(parent, commands: list[list], comp_signal: bool=False) -> None:
         elif command[0] == 'click':
 
             # the click type, left, right, or double
-            if command[1] == 1: click_function = pyautogui.leftClick
-            elif command[1] == 2: click_function = pyautogui.rightClick
-            elif command[1] == 3: click_function = pyautogui.doubleClick
+            if command[1] == 'left': click_function = pyautogui.leftClick
+            elif command[1] == 'right': click_function = pyautogui.rightClick
+            elif command[1] == 'double': click_function = pyautogui.doubleClick
 
             # click by coordinates
             if command[2] == 'coord':
@@ -158,7 +131,7 @@ def interpret(parent, commands: list[list], comp_signal: bool=False) -> None:
             show_window(window_title, parent)
 
     # optionally provide a completion signal
-    if comp_signal:
+    if completionSignal:
         QMessageBox.information(parent, 'PyAutoMate', f'Script was executed successfully')
 
     parent.show()
