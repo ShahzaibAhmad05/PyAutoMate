@@ -13,6 +13,7 @@ from modules.sysUtils import sleep_for
 from modules.styling import dialog_window_stylesheet, context_menu_stylesheet, push_button_stylesheet, push_button_disabled_stylesheet
 from modules.utils import enableDragging, add_spaces_for_context_menu, generateRandomID
 from modules.getters import get_icon_path
+from modules.debugger import debug
 
 # UI elements
 from ui.scriptingTextEdit import ScriptingTextEdit
@@ -330,18 +331,28 @@ class ScriptEditorWindow(QDialog):
             self.input_field.insertPlainText(f'show {option_window.get_input_values()[0].text()}')
         self.input_field.setFocus()
 
+    def select_icon(self):
+        """ Open file dialog to select an image and display the file path """
+        new_file_path, _ = QFileDialog.getOpenFileName(
+                                parent=self,
+                                caption="Select An Image",
+                                filter="Image Files (*.png *.jpg *.jpeg *.bmp *.gif *.webp *.tiff *.svg);;All Files (*)",
+                                options=QFileDialog.Options())
+        if new_file_path:
+            self.file_path = new_file_path
+            self.icon_label.setText(f"Selected Image: {os.path.basename(self.file_path)}")
+
     def on_ok(self) -> None:
         if not self.input_field.toPlainText():
             QMessageBox.critical(self, 'PyAutoMate', 'The compilation cannot be done because the script is empty.')
         else:
             script = self.input_field.toPlainText().splitlines()
+            self.code = []                    # empty the stored code
             for line in script:
-                line = line.split()
-                self.code.append(line)
+                line = line.split(' ')        # make it a list of words
+                self.code.append(line)        # add each list to the code
 
-            # TODO: Debugger implementation required here.
-
-            approval = True
+            approval = debug(self.code)
             if approval:
                 if not self.file_path and self.includes_icon.isChecked() and QMessageBox.critical(self, 'PyAutoMate', 
                     'The compilation cannot be done because no icon was chosen for the button. '
@@ -354,19 +365,10 @@ class ScriptEditorWindow(QDialog):
                                      'Incorrect syntax, the script could not be compiled.')
                 self.code = []
 
+    """ helpers for the on_ok function """
+
     def get_input(self):
         """ Returns the input text """
         if not self.includes_icon.isChecked():
             self.file_path = None
         return [self.file_path, self.code, self.completion_check.isChecked()]
-
-    def select_icon(self):
-        """ Open file dialog to select an image and display the file path """
-        new_file_path, _ = QFileDialog.getOpenFileName(
-                                parent=self,
-                                caption="Select An Image",
-                                filter="Image Files (*.png *.jpg *.jpeg *.bmp *.gif *.webp *.tiff *.svg);;All Files (*)",
-                                options=QFileDialog.Options())
-        if new_file_path:
-            self.file_path = new_file_path
-            self.icon_label.setText(f"Selected Image: {os.path.basename(self.file_path)}")
