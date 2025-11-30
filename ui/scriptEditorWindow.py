@@ -113,6 +113,7 @@ class ScriptEditorWindow(QDialog):
         # checkbox to indicate if the button has a key or not
         self.selectKeyCheckbox = QCheckBox('Include Key', self)
         self.selectKeyCheckbox.setStyleSheet(" margin-top: 15px;")
+        self.selectKeyCheckbox.setChecked(True if self.key else False)
         main_layout.addWidget(self.selectKeyCheckbox)
 
         # checkbox to decide whether to include icon or not

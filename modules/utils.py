@@ -21,8 +21,10 @@ def save_script(scriptID: int | str, iconID: int | str, key: str, code: list, co
 
 def delete_script(scriptID: int | str, iconID: int | str) -> None:
     """ removes a script JSON file """
-    os.remove(get_icon_path(iconID))
-    os.remove(get_script_path(scriptID))
+    if os.path.exists(get_icon_path(iconID)):
+        os.remove(get_icon_path(iconID))
+    if os.path.exists(get_script_path(scriptID)):
+        os.remove(get_script_path(scriptID))
 
 def load_script(scriptID: int | str) -> dict:
     """ loads a script from its corresponding JSON file """

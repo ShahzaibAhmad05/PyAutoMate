@@ -21,6 +21,9 @@ key
 show
     windowTitle
 
+cmd
+    command
+
 {
     "scriptID": 999999,
     "iconID": "images/icon.png",

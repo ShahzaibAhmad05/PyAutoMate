@@ -7,7 +7,7 @@ from PyQt5.QtGui import QIcon, QColor, QPainter
 import os, sys, shutil, pyautogui
 
 # self-defined modules
-from modules.getters import get_settings, get_logo_path
+from modules.getters import get_settings, get_logo_path, get_icon_path
 from modules.utils import save_script, enableDragging, generateRandomID, add_spaces_for_context_menu
 from modules.sysUtils import sleep_for
 from Assistant import GlobalTextBox
@@ -128,9 +128,9 @@ class MainTool(QMainWindow):
             scriptID = generateRandomID()
             iconID = None
             # save the icon if given
-            if os.path.exists(image_path):
+            if image_path is not None and os.path.exists(image_path):
                 iconID = generateRandomID()
-                shutil.copy(image_path, iconID)
+                shutil.copy(image_path, get_icon_path(iconID))
 
             save_script(scriptID, iconID, key, code, completionSignal)
             # show the button for this instance too

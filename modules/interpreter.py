@@ -2,7 +2,7 @@
 from PyQt5.QtWidgets import QMessageBox
 
 # python libraries
-import os, time, pyautogui, keyboard, mouse, webbrowser
+import os, time, pyautogui, keyboard, mouse, webbrowser, subprocess
 from io import BytesIO
 from PIL import Image
 from pygetwindow import getWindowsWithTitle
@@ -129,6 +129,10 @@ def interpret(parent, commands: list[list], completionSignal: bool=False) -> Non
         elif command[0] == 'show':
             window_title = command[1]
             show_window(window_title, parent)
+
+        elif command[0] == 'cmd':
+            cmd = command[1:]
+            subprocess.run(cmd)
 
     # optionally provide a completion signal
     if completionSignal:

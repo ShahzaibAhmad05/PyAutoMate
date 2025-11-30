@@ -50,10 +50,24 @@ class DraggableButton(QPushButton):
         if scriptEditorWindow.exec_() == QDialog.Accepted:
 
             # update the attributes of the current button
-            self.iconID = scriptEditorWindow.getIconID()
+            iconPath = scriptEditorWindow.getIconID()
             self.code = scriptEditorWindow.getCode()
             self.completionSignal = scriptEditorWindow.getCompletionSignal()
             self.key = scriptEditorWindow.getKey()
+
+            if iconPath is not None and os.path.exists(iconPath):
+                # safely copy the image first
+                newIconID = generateRandomID()
+                shutil.copy(iconPath, get_icon_path(newIconID))
+                # now remove and replace the old icon
+                if self.iconID is not None and os.path.exists(get_icon_path(self.iconID)):
+                    os.remove(get_icon_path(self.iconID))
+                self.iconID = newIconID
+
+            elif iconPath is None:      # if the icon is disabled
+                if self.iconID is not None and os.path.exists(get_icon_path(self.iconID)):
+                    os.remove(get_icon_path(self.iconID))
+                self.iconID = None
 
             # save the updated script
             save_script(scriptID=self.scriptID, iconID=self.iconID, key=self.key, 
@@ -141,12 +155,12 @@ class DraggableButton(QPushButton):
             # save the icon in the script
             self.iconID = generateRandomID()
             shutil.copy(image_path, get_icon_path(self.iconID))
-            save_script(self.scriptID, self.iconID, self.code, self.completionSignal)
+            save_script(self.scriptID, self.iconID, self.key, self.code, self.completionSignal)
             self.refresh()      # refresh to apply changes
 
         elif action5 and action == action5:
             # remove the icon from script file
-            save_script(self.scriptID, self.code, None, self.completionSignal)
+            save_script(self.scriptID, None, self.key, self.code, self.completionSignal)
             self.refresh()
             
         elif action == action6:

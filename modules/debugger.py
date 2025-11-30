@@ -16,7 +16,7 @@ def debug(code: list) -> bool:
     # define allowed keywords in commands
     val = {
         1: [
-            'click', 'open', 'wait', 'key', 'show'
+            'click', 'open', 'wait', 'key', 'show', 'cmd'
         ],
         2: [
             'left', 'right', 'double',
@@ -34,7 +34,8 @@ def debug(code: list) -> bool:
         'open': 2,
         'wait': 2,
         'key': 2,
-        'show': 1
+        'show': 1,
+        'cmd': 1
     }
 
     # extract keywords from commands
