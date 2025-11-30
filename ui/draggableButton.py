@@ -50,7 +50,6 @@ class DraggableButton(QPushButton):
         if scriptEditorWindow.exec_() == QDialog.Accepted:
 
             # update the attributes of the current button
-            self.iconID, self.code, self.completionSignal = scriptEditorWindow.get_input()
             self.iconID = scriptEditorWindow.getIconID()
             self.code = scriptEditorWindow.getCode()
             self.completionSignal = scriptEditorWindow.getCompletionSignal()

@@ -120,16 +120,19 @@ class MainTool(QMainWindow):
         self.hide()     # hide main tool only after editor is shown
 
         if scriptEditor.exec_() == QDialog.Accepted:
-            image_path, code, completionSignal = scriptEditor.get_input()
+            image_path = scriptEditor.getIconID()
+            code = scriptEditor.getCode()
+            completionSignal = scriptEditor.getCompletionSignal()
+            key = scriptEditor.getKey()
+
             scriptID = generateRandomID()
             iconID = None
-
             # save the icon if given
             if os.path.exists(image_path):
                 iconID = generateRandomID()
                 shutil.copy(image_path, iconID)
 
-            save_script(scriptID, iconID, code, completionSignal)
+            save_script(scriptID, iconID, key, code, completionSignal)
             # show the button for this instance too
             self.button = DraggableButton(self, scriptID)
             push_button_stylesheet(self.button, self)
