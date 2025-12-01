@@ -1,10 +1,10 @@
-#QPushButton {
+QPushButton, QKeySequenceEdit {
     padding: 5px 0;
     border-radius: 5px;
     background-color: rgb(255, 255, 255);
     border: 1px solid rgb(224, 224, 224);
 }
-#QPushButton:hover {
+QPushButton:hover, QKeySequenceEdit:hover {
     background-color: rgb(230, 243, 255);
     border-color: rgb(0, 120, 215);
 }
