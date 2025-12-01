@@ -10,7 +10,6 @@ import os
 import inspect
 import pickle
 from modules.sysUtils import sleep_for
-from Assistant import GlobalTextBox
 import threading
 import json
 import time

@@ -229,10 +229,12 @@ class ScriptEditorWindow(QDialog):
 
             def write_script_for_action(start_time, stop_key: str, click_type: str, func_to_run: Callable):
                 if include_time:
-                    self.input_field.insertPlainText(f'wait time {round(time.time() - start_time + 0.6, 0)}\n')
+                    self.input_field.insertPlainText(
+                        f'wait time <{round(time.time() - start_time + 0.6, 0)}>\n'
+                    )
                 while keyboard.is_pressed(stop_key): sleep_for(25)
                 location = pyautogui.position()
-                self.input_field.insertPlainText(f'click {click_type} coord {location.x} {location.y}\n')
+                self.input_field.insertPlainText(f'click <{click_type}> coord <{location.x}> <{location.y}>\n')
                 func_to_run(location.x, location.y)
 
             while main_loop_flag:
@@ -272,10 +274,12 @@ class ScriptEditorWindow(QDialog):
             # calls the dialog back to the last saved position
             option_window.move(current_position.x(), current_position.y())
             if option_window.get_selected_option().endswith('Coordinates'):
-                self.input_field.insertPlainText(f'click {button_type} coord {position.x} {position.y}\n')
+                self.input_field.insertPlainText(
+                    f'click <{button_type}> coord <{position.x}> <{position.y}>\n'
+                )
             elif option_window.get_selected_option().endswith('Image'):
                 id = save_screenshot(position)
-                self.input_field.insertPlainText(f'click {button_type} img 10 {id}\n')
+                self.input_field.insertPlainText(f'click <{button_type}> img 10 <{id}>\n')
 
         def save_screenshot(position: tuple) -> int:
             """ saves the 16x16 screenshot of the given location, and returns the save path """
@@ -302,16 +306,16 @@ class ScriptEditorWindow(QDialog):
                                                         filter="All Files (*)", 
                                                         options=QFileDialog.Options())
             if file_path:
-                self.input_field.insertPlainText(f'open file {file_path}\n')
+                self.input_field.insertPlainText(f'open file <{file_path}>\n')
         def open_folder():
             folder_path = QFileDialog.getExistingDirectory(parent=self, caption="Select Folder", 
                                                            options=QFileDialog.Options())
             if folder_path:
-                self.input_field.insertPlainText(f'open file {folder_path}\n')
+                self.input_field.insertPlainText(f'open file <{folder_path}>\n')
         def open_link():
             text, ok = QInputDialog.getText(self, "Open Website Link", "Paste Website Link Here:", flags=Qt.Tool)
             if ok and text:  # If user clicks OK and input is not empty
-                self.input_field.insertPlainText(f'open link {text}\n')
+                self.input_field.insertPlainText(f'open link <{text}>\n')
 
         context_menu = QMenu(self)
         context_menu_stylesheet(context_menu, self.mainTool)
@@ -357,11 +361,13 @@ class ScriptEditorWindow(QDialog):
             entered_values = option_window.get_input_values()
             if option_window.get_selected_option() in ['Keyboard', 'Mouse'] and entered_values[0].text():
                 if option_window.get_selected_option() == 'Keyboard':
-                    self.input_field.insertPlainText(f'wait key keyboard {entered_values[0].text()}')
+                    self.input_field.insertPlainText(
+                        f'wait key keyboard <{entered_values[0].text()}>'
+                    )
                 elif option_window.get_selected_option() == 'Mouse':
-                    self.input_field.insertPlainText(f'wait key mouse {entered_values[0].text()}')
+                    self.input_field.insertPlainText(f'wait key mouse <{entered_values[0].text()}>')
             elif option_window.get_selected_option() == 'Seconds' and entered_values[1].text():
-                self.input_field.insertPlainText(f'wait time {entered_values[1].text()}')
+                self.input_field.insertPlainText(f'wait time <{entered_values[1].text()}>')
         self.input_field.setFocus()
 
     def keyboard_op(self):
@@ -371,7 +377,7 @@ class ScriptEditorWindow(QDialog):
             to_type = option_window.get_input_values()[0].text()
             if option_window.get_selected_option().startswith('Type'): type_or_press = 'type'
             elif option_window.get_selected_option().startswith('Press'): type_or_press = 'press'
-            self.input_field.insertPlainText(f'keyboard {type_or_press} {to_type}')
+            self.input_field.insertPlainText(f'keyboard <{type_or_press}> <{to_type}>')
         self.input_field.setFocus()
 
     def window_shower(self):

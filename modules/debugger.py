@@ -1,3 +1,4 @@
+from modules.utils import decodeVar
 """ 
 debugger for the scripts.
 
@@ -28,8 +29,8 @@ def debug(code: list) -> bool:
             'coord', 'img'
         ]
     }
-    # define positions at which cmd variables start
-    varpos = {
+    # define positions at which cmd keywords end
+    keywEnd = {
         'click': 3,
         'open': 2,
         'wait': 2,
@@ -46,8 +47,11 @@ def debug(code: list) -> bool:
             if idx == 1: firstKeyw = keyw
 
             # if cmd was supposed to have a keyword here
-            # and this is not a keyword
-            if idx <= varpos[firstKeyw] and keyw not in val[idx]:
-                return False
+            if idx <= keywEnd[firstKeyw]:
+                if decodeVar(keyw) not in val[idx]:        # and this is not a keyword
+                    return False
+            else:   # if cmd was supposed to have a var here
+                if not keyw.startswith("<") or not keyw.endswith(">"):
+                    return False
             
     return True

@@ -10,7 +10,6 @@ import os, sys, shutil, pyautogui
 from modules.getters import get_settings, get_logo_path, get_icon_path
 from modules.utils import save_script, enableDragging, generateRandomID, add_spaces_for_context_menu
 from modules.sysUtils import sleep_for
-from Assistant import GlobalTextBox
 
 # UI elements
 from ui.settings import Settings
@@ -59,7 +58,6 @@ class MainTool(QMainWindow):
 
         # Assistant control variables
         self.assistant_text_enabled = True
-        self.floating_textbox = GlobalTextBox(self)
 
 
     def initUI(self) -> None:

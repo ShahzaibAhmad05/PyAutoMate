@@ -84,3 +84,17 @@ def add_spaces_for_context_menu(text: str, shortcut_key: str, space_rule: int=22
     text += shortcut_key
     return text
 
+def decodeVar(var: str) -> str | int:
+    """ 
+    Removes anchor brackets from a string and 
+    converts it to int if it is a digit.
+    """
+    var = var.strip("<>")
+    if var.isdigit(): var = int(var)
+    return var
+
+def encodeVar(var: str | int) -> str:
+    """
+    Wraps a str in anchor brackets <>
+    """
+    return f"<{var}>"
